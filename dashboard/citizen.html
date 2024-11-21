@@ -1,0 +1,233 @@
+<?php
+session_start();
+include 'db.php'; // Include your existing database connection file
+
+// Handle Crime Report Submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_crime'])) {
+    $incident_description = htmlspecialchars($_POST['incident_description']);
+    $location = htmlspecialchars($_POST['location']);
+    $date = htmlspecialchars($_POST['date']);
+    $query = $conn->prepare("INSERT INTO crime_reports (incident_description, location, report_date) VALUES (?, ?, ?)");
+    $query->bind_param("sss", $incident_description, $location, $date);
+    $query->execute();
+    echo json_encode(['success' => true, 'message' => 'Crime report submitted successfully.']);
+    exit;
+}
+
+// Fetch Crime Reports
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_reports'])) {
+    $result = $conn->query("SELECT * FROM crime_reports ORDER BY report_date DESC");
+    $reports = $result->fetch_all(MYSQLI_ASSOC);
+    echo json_encode($reports);
+    exit;
+}
+
+// Fetch Emergency Contacts
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_contacts'])) {
+    echo json_encode([
+        ['Police', '999'],
+        ['Fire Service', '16163'],
+        ['Ambulance', '199'],
+        ['Women and Child Helpline', '109']
+    ]);
+    exit;
+}
+
+// Fetch Notifications
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_notifications'])) {
+    echo json_encode([
+        ['Crime reported in your area. Stay alert.', '2024-11-21 10:00'],
+        ['New safety guidelines released.', '2024-11-20 14:30']
+    ]);
+    exit;
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citizen Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/leaflet.css" />
+    <style>
+        body {
+            display: flex;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: #343a40;
+            color: white;
+            height: 100vh;
+            position: fixed;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar h3 {
+            margin-bottom: 20px;
+        }
+
+        .sidebar a {
+            color: white;
+            text-decoration: none;
+            display: block;
+            margin-bottom: 15px;
+            transition: color 0.3s ease;
+        }
+
+        .sidebar a:hover {
+            color: #007bff;
+        }
+
+        .content {
+            margin-left: 250px;
+            width: calc(100% - 250px);
+            padding: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .map-container {
+            height: 300px;
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h3>Citizen Dashboard</h3>
+        <a href="#" onclick="showFeature('reportCrime')">Report Crime</a>
+        <a href="#" onclick="showFeature('trackReports')">Track Reports</a>
+        <a href="#" onclick="showFeature('safetyMap')">Safety Map</a>
+        <a href="#" onclick="showFeature('emergencyContacts')">Emergency Contacts</a>
+        <a href="#" onclick="showFeature('notifications')">Notifications</a>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content">
+        <!-- Dynamic Sections -->
+        <div id="reportCrime" class="hidden">
+            <h3>Report a Crime</h3>
+            <form id="crimeReportForm">
+                <div class="mb-3">
+                    <textarea class="form-control" name="incident_description" placeholder="Describe the incident..." rows="3" required></textarea>
+                </div>
+                <div class="mb-3">
+                    <input type="text" class="form-control" name="location" placeholder="Location" required>
+                </div>
+                <div class="mb-3">
+                    <input type="date" class="form-control" name="date" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Submit Report</button>
+            </form>
+        </div>
+
+        <div id="trackReports" class="hidden">
+            <h3>Your Submitted Reports</h3>
+            <ul id="reportsList" class="list-group"></ul>
+        </div>
+
+        <div id="safetyMap" class="hidden">
+            <h3>Safety Map</h3>
+            <div id="map" class="map-container"></div>
+        </div>
+
+        <div id="emergencyContacts" class="hidden">
+            <h3>Emergency Contacts</h3>
+            <ul id="contactsList" class="list-group"></ul>
+        </div>
+
+        <div id="notifications" class="hidden">
+            <h3>Notifications</h3>
+            <div id="notificationsList"></div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        function showFeature(feature) {
+            document.querySelectorAll('.content > div').forEach(div => div.classList.add('hidden'));
+            document.getElementById(feature).classList.remove('hidden');
+
+            if (feature === 'trackReports') loadReports();
+            if (feature === 'emergencyContacts') loadContacts();
+            if (feature === 'notifications') loadNotifications();
+            if (feature === 'safetyMap') initMap();
+        }
+
+        document.getElementById('crimeReportForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            axios.post('', formData)
+                .then(response => alert(response.data.message))
+                .catch(error => console.error(error));
+        });
+
+        function loadReports() {
+            axios.get('?fetch_reports=true')
+                .then(response => {
+                    const list = document.getElementById('reportsList');
+                    list.innerHTML = '';
+                    response.data.forEach(report => {
+                        const item = document.createElement('li');
+                        item.className = 'list-group-item';
+                        item.textContent = `#${report.id} - ${report.incident_description} | Status: ${report.status}`;
+                        list.appendChild(item);
+                    });
+                })
+                .catch(error => console.error(error));
+        }
+
+        function loadContacts() {
+            axios.get('?fetch_contacts=true')
+                .then(response => {
+                    const list = document.getElementById('contactsList');
+                    list.innerHTML = '';
+                    response.data.forEach(contact => {
+                        const item = document.createElement('li');
+                        item.className = 'list-group-item';
+                        item.innerHTML = `<span>${contact[0]}</span> <a href="tel:${contact[1]}">${contact[1]}</a>`;
+                        list.appendChild(item);
+                    });
+                })
+                .catch(error => console.error(error));
+        }
+
+        function loadNotifications() {
+            axios.get('?fetch_notifications=true')
+                .then(response => {
+                    const container = document.getElementById('notificationsList');
+                    container.innerHTML = '';
+                    response.data.forEach(notification => {
+                        const div = document.createElement('div');
+                        div.className = 'alert alert-info';
+                        div.textContent = `${notification[0]} (${notification[1]})`;
+                        container.appendChild(div);
+                    });
+                })
+                .catch(error => console.error(error));
+        }
+
+        function initMap() {
+            const map = L.map('map').setView([23.8103, 90.4125], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            L.marker([23.8103, 90.4125]).addTo(map).bindPopup('Police Station');
+        }
+
+        // Load the default feature
+        showFeature('reportCrime');
+    </script>
+</body>
+</html>
