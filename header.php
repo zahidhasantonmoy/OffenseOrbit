@@ -14,71 +14,48 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// Handle login and registration logic
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Handle login
-    if (isset($_POST['login'])) {
-        $email = $_POST['email'];
-        $password = $_POST['password'];
-        
-        // Sanitize user input
-        $email = $conn->real_escape_string($email);
-        $password = $conn->real_escape_string($password);
-        
-        // Query to check if the email exists
-        $sql = "SELECT * FROM users WHERE email='$email'";
-        $result = $conn->query($sql);
-        
-        if ($result->num_rows > 0) {
-            $user = $result->fetch_assoc();
-            // Verify the password
-            if (password_verify($password, $user['password'])) {
-                $_SESSION['user'] = $user; // Store user info in session
-                header("Location: ".$_SERVER['PHP_SELF']); // Refresh page
-                exit;
-            } else {
-                echo "<script>alert('Invalid email or password.');</script>";
-            }
+// Handle login logic
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['login'])) {
+    $email = $conn->real_escape_string($_POST['email']);
+    $password = $conn->real_escape_string($_POST['password']);
+
+    $sql = "SELECT * FROM users WHERE email='$email'";
+    $result = $conn->query($sql);
+
+    if ($result->num_rows > 0) {
+        $user = $result->fetch_assoc();
+        if (password_verify($password, $user['password'])) {
+            $_SESSION['user'] = $user; // Store user info in session
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit;
         } else {
             echo "<script>alert('Invalid email or password.');</script>";
         }
+    } else {
+        echo "<script>alert('Invalid email or password.');</script>";
     }
+}
 
-    // Handle registration
-    elseif (isset($_POST['register'])) {
-        $name = $_POST['name'];
-        $email = $_POST['email'];
-        $password = $_POST['password'];
-        $age = $_POST['age'];
-        $gender = $_POST['gender'];
-        $fitness_goal = $_POST['fitness_goal'];
-        $dob = $_POST['dob']; // Date of birth
-        
-        // Sanitize user input
-        $name = $conn->real_escape_string($name);
-        $email = $conn->real_escape_string($email);
-        $password = password_hash($password, PASSWORD_DEFAULT); // Hash the password
-        $age = $conn->real_escape_string($age);
-        $gender = $conn->real_escape_string($gender);
-        $fitness_goal = $conn->real_escape_string($fitness_goal);
-        $dob = $conn->real_escape_string($dob);
-        
-        // Query to check if the email already exists
-        $sql_check_email = "SELECT * FROM users WHERE email='$email'";
-        $result_check = $conn->query($sql_check_email);
-        
-        if ($result_check->num_rows > 0) {
-            echo "<script>alert('Email already exists. Please use a different email.');</script>";
+// Handle registration logic
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
+    $name = $conn->real_escape_string($_POST['name']);
+    $email = $conn->real_escape_string($_POST['email']);
+    $password = password_hash($conn->real_escape_string($_POST['password']), PASSWORD_DEFAULT);
+    $phone = $conn->real_escape_string($_POST['phone']);
+    $address = $conn->real_escape_string($_POST['address']);
+
+    $sql_check_email = "SELECT * FROM users WHERE email='$email'";
+    $result_check = $conn->query($sql_check_email);
+
+    if ($result_check->num_rows > 0) {
+        echo "<script>alert('Email already exists. Please use a different email.');</script>";
+    } else {
+        $sql = "INSERT INTO users (name, email, password, role, phone_number, address) 
+                VALUES ('$name', '$email', '$password', 'citizen', '$phone', '$address')";
+        if ($conn->query($sql) === TRUE) {
+            echo "<script>alert('Registration successful! Please login now.');</script>";
         } else {
-            // Insert new user record
-            $sql = "INSERT INTO users (name, email, password, age, gender, fitness_goal, dob) 
-                    VALUES ('$name', '$email', '$password', '$age', '$gender', '$fitness_goal', '$dob')";
-            
-            if ($conn->query($sql) === TRUE) {
-                echo "<script>alert('Registration successful! Please login now.');</script>";
-            } else {
-                echo "<script>alert('Error: " . $conn->error . "');</script>";
-            }
+            echo "<script>alert('Error: " . $conn->error . "');</script>";
         }
     }
 }
@@ -86,7 +63,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 // Logout logic
 if (isset($_GET['logout'])) {
     session_destroy();
-    header("Location: ".$_SERVER['PHP_SELF']);
+    header("Location: /");
     exit;
 }
 
@@ -100,302 +77,362 @@ $conn->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OffenseOrbit</title>
     <style>
-        /* General Reset */
-        body, h1, h2, a, button, ul, li {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
             font-family: Arial, sans-serif;
-            background: #f5f5f5;
+            background: #1c1c28;
+            color: #fff;
+            margin: 0;
+            padding: 0;
         }
 
-        /* Top Bar */
         .top-bar {
-            background: linear-gradient(90deg, #BFBDC1,#6D6975);
-            padding: 10px 20px;
-            position: fixed;
-            top: 0;
-            width: 100%;
-            z-index: 1000;
+            background: linear-gradient(90deg, #3b4371, #f3904f);
+            padding: 15px 20px;
             display: flex;
-            justify-content: center; /* Center the content */
+            justify-content: space-evenly;
             align-items: center;
             color: white;
-            font-size: 18px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            flex-wrap: wrap; /* Allow wrapping of elements on smaller screens */
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
 
         .top-bar .brand {
             font-size: 24px;
             font-weight: bold;
-            margin-right: 20px;
-        }
-
-        /* Menu and Links */
-        .top-bar .nav {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-wrap: wrap; /* Allow wrapping on smaller screens */
-        }
-
-        .top-bar .nav ul {
-            display: flex;
-            margin: 0;
-            padding: 0;
-            list-style: none;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .top-bar .nav ul li {
-            margin-right: 20px;
-        }
-
-        .top-bar .nav ul li a {
-            color: white;
+            text-transform: uppercase;
             text-decoration: none;
-            font-size: 16px;
+            color: white;
         }
 
-        .top-bar .nav ul li a:hover {
-            text-decoration: underline;
+        .top-bar .brand:hover {
+            color: #ffd700;
         }
 
-        /* Search bar */
         .top-bar .search-bar {
             display: flex;
             align-items: center;
-            background-color: white;
-            border-radius: 5px;
-            padding: 5px 10px;
-            margin-right: 20px;
-            justify-content: center;
+            gap: 10px;
         }
 
         .top-bar .search-bar input {
+            padding: 10px;
             border: none;
+            border-radius: 20px;
             outline: none;
-            padding: 5px;
-            width: 200px;
-            font-size: 14px;
+            width: 250px;
+            transition: all 0.3s;
         }
 
-        .top-bar .search-bar button {
-            border: none;
-            background-color: #f76c6c;
+
+
+         
+
+        .highlight {
+            background-color: yellow;
+            color: black;
+            font-weight: bold;
+            padding: 0 2px;
+        }
+
+        .popup {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #ff4f4f;
             color: white;
-            padding: 5px 10px;
-            cursor: pointer;
+            padding: 15px 20px;
             border-radius: 5px;
+            font-size: 16px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            animation: fadeInOut 3s ease-in-out;
+        }
+
+
+        .top-bar .search-bar button {
+            padding: 10px 15px;
+            background: #f3904f;
+            border: none;
+            color: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
         }
 
         .top-bar .search-bar button:hover {
-            background-color: #FF6347;
+            background: #ff7846;
         }
 
-        /* User Menu */
-        .top-bar .user-menu {
+        .top-bar-right {
             display: flex;
             align-items: center;
-            justify-content: center;
-            margin-top: 10px;
+            gap: 15px;
         }
 
-        .top-bar .user-menu button {
-            margin-left: 10px;
-            background: #f76c6c;
+        .top-bar button {
+            background: #f3904f;
             color: white;
-            padding: 5px 10px;
-            font-size: 16px;
+            padding: 8px 15px;
             border: none;
+            border-radius: 20px;
             cursor: pointer;
-            border-radius: 5px;
+            font-size: 14px;
+            transition: all 0.3s;
         }
 
-        .top-bar .user-menu button:hover {
-            background-color: #FF6347;
+        .top-bar button:hover {
+            background: #ff7846;
         }
 
-        /* Overlay and Panel */
         .overlay {
+            display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
+            background: rgba(0, 0, 0, 0.9);
             justify-content: center;
             align-items: center;
-            z-index: 999;
+            z-index: 1001;
         }
 
         .panel {
             background: white;
-            width: 90%;
-            max-width: 400px;
             padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 400px;
             position: relative;
             text-align: center;
+            animation: fadeIn 0.5s ease-in-out;
+            z-index: 1002;
         }
 
-        .panel h2 {
-            margin-bottom: 20px;
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        .panel form {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .panel form input {
-            margin: 10px 0;
+        .panel input {
+            width: 100%;
             padding: 10px;
+            margin: 10px 0;
             border: 1px solid #ddd;
             border-radius: 5px;
         }
 
-        .panel form button {
-            margin-top: 10px;
+        .panel button {
+            width: 100%;
             padding: 10px;
-            border: none;
-            background: #FF7F50;
+            background: #f3904f;
             color: white;
-            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .panel button:hover {
+            background: #ff7846;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 18px;
+            color: #ff7846;
+            border: none;
+            background: transparent;
             cursor: pointer;
         }
 
-        .panel form button:hover {
-            background-color: #FF6347;
+        .close-btn i {
+            font-size: 20px;
         }
 
-        .panel .close-btn {
+        .close-btn:hover {
+            color: red;
+        }
+
+        .welcome-section {
+            margin-top: 100px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            background: linear-gradient(to right, #6a11cb, #2575fc);
+            color: white;
+            animation: hoverEffect 0.3s ease-in-out;
+            border-radius: 10px;
+            box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        @keyframes hoverEffect {
+            0% {
+                transform: translateY(10px);
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .welcome-close-btn {
             position: absolute;
             top: 10px;
             right: 10px;
             background: transparent;
             border: none;
-            color: #FF6347;
-            font-size: 20px;
+            color: #fff;
+            font-size: 18px;
             cursor: pointer;
         }
 
-        .panel .close-btn:hover {
-            color: #FF7F50;
+        .welcome-close-btn i {
+            font-size: 20px;
         }
 
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .top-bar {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .top-bar .nav ul {
-                flex-direction: column;
-                margin-bottom: 10px;
-            }
-
-            .top-bar .search-bar {
-                width: 100%;
-                margin: 10px 0;
-            }
-
-            .top-bar .user-menu {
-                flex-direction: column;
-                margin-top: 20px;
-            }
-
-            .top-bar .user-menu button {
-                margin-left: 0;
-                margin-top: 10px;
-            }
+        .welcome-close-btn:hover {
+            color: red;
         }
     </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="top-bar">
-        <div class="brand">OffenseOrbit</div>
-        <div class="nav">
-            <ul>
-                <li><a href="#">Home</a></li>
-                <li><a href="#">Lost</a></li>
-                <li><a href="#">Found</a></li>
-                <li><a href="#">Help 999 </a></li>
-            </ul>
+        <div class="top-bar-left">
+            <a href="/" class="brand">OffenseOrbit</a>
+            <button onclick="alert('Lost functionality')">Lost</button>
+            <button onclick="alert('Found functionality')">Found</button>
             <div class="search-bar">
-                <input type="text" placeholder="Search...">
-                <button>Search</button>
+                <input type="text" id="search" placeholder="Search for text..." />
+        <button onclick="searchPage()">Search</button>
             </div>
         </div>
-        <div class="user-menu">
-            <?php
-            if (isset($_SESSION['user'])) {
-                // Display welcome message and logout button
-                echo "<span>Welcome, " . $_SESSION['user']['name'] . "!</span>";
-                echo "<a href='?logout=true'><button>Logout</button></a>";
-            } else {
-                // Display login and register buttons
-                echo "<button onclick='toggleLoginPanel(1)'>Login</button>";
-                echo "<button onclick='toggleLoginPanel(2)'>Register</button>";
-            }
-            ?>
+        <div class="top-bar-right">
+             <?php if (isset($_SESSION['user'])): ?>
+                <a href="?logout=true">Logout</a>
+                <?php if ($_SESSION['user']['role'] === 'officer'): ?>
+                <a href="/dashboard/officer_dashboard.php">
+            <button>Officer Dashboard</button>
+        </a>
+    <?php else: ?>
+        <a href="/dashboard/citizen_dashboard.php">
+            <button>Citizen Dashboard</button>
+        </a>
+    <?php endif; ?>
+            <?php else: ?>
+                <button onclick="showPanel('login')">Login</button>
+                <button onclick="showPanel('register')">Sign Up</button>
+            <?php endif; ?>
         </div>
     </div>
 
-    <!-- Login Panel -->
-    <div class="overlay" id="login-panel">
-        <div class="panel" id="login-form">
-            <button class="close-btn" onclick="closeLoginPanel()">X</button>
+    <?php if (isset($_SESSION['user'])): ?>
+        <div class="welcome-section" id="welcome-section">
+            <button class="welcome-close-btn" onclick="closeWelcome()"><i class="fas fa-times"></i></button>
+            <h1>Welcome, <?= $_SESSION['user']['name']; ?>!</h1>
+            <p>Your role: <?= ucfirst($_SESSION['user']['role']); ?></p>
+        </div>
+    <?php endif; ?>
+
+    <div class="overlay" id="overlay">
+        <div class="panel" id="login-panel">
+            <button class="close-btn" onclick="closePanel()"><i class="fas fa-times"></i></button>
             <h2>Login</h2>
-            <form method="POST" action="">
+            <form method="POST">
                 <input type="email" name="email" placeholder="Email" required>
                 <input type="password" name="password" placeholder="Password" required>
                 <button type="submit" name="login">Login</button>
+                <a href="#" style="color: #f3904f; text-decoration: none;">Forgot Password?</a>
             </form>
-            <a class="forgot-password" href="#">Forgot Password?</a>
         </div>
-
-        <!-- Registration Form -->
-        <div class="panel" id="register-form" style="display: none;">
-            <button class="close-btn" onclick="closeLoginPanel()">X</button>
-            <h2>Register</h2>
-            <form method="POST" action="">
+        <div class="panel" id="register-panel" style="display:none;">
+            <button class="close-btn" onclick="closePanel()"><i class="fas fa-times"></i></button>
+            <h2>Sign Up</h2>
+            <form method="POST">
                 <input type="text" name="name" placeholder="Full Name" required>
                 <input type="email" name="email" placeholder="Email" required>
                 <input type="password" name="password" placeholder="Password" required>
-                <input type="text" name="age" placeholder="Age" required>
-                  <select name="gender" required>
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                </select>
-                <input type="text" name="fitness_goal" placeholder="Fitness Goal" required>
-                <input type="date" name="dob" placeholder="Date of Birth" required>
-                <button type="submit" name="register">Register</button>
+                <input type="text" name="phone" placeholder="Phone Number" required>
+                <textarea name="address" placeholder="Address" required></textarea>
+                <button type="submit" name="register">Sign Up</button>
             </form>
         </div>
     </div>
 
     <script>
-        // Toggle between login and registration forms
-        function toggleLoginPanel(formType) {
-            document.getElementById('login-form').style.display = (formType === 1) ? 'block' : 'none';
-            document.getElementById('register-form').style.display = (formType === 2) ? 'block' : 'none';
-            document.getElementById('login-panel').style.display = 'flex';
+        function showPanel(panel) {
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById(panel + '-panel').style.display = 'block';
         }
 
-        // Close the login panel
-        function closeLoginPanel() {
+        function closePanel() {
+            document.getElementById('overlay').style.display = 'none';
             document.getElementById('login-panel').style.display = 'none';
+            document.getElementById('register-panel').style.display = 'none';
+        }
+
+        function closeWelcome() {
+            document.getElementById('welcome-section').style.display = 'none';
+        }
+
+       function searchPage() {
+            // Get the search query and clean up existing highlights
+            const query = document.getElementById('search').value.trim().toLowerCase();
+            const content = document.getElementById('content');
+
+            // Remove existing highlights
+            content.innerHTML = content.innerHTML.replace(/<mark class="highlight">|<\/mark>/g, '');
+
+            // If no query provided, do nothing
+            if (query === "") {
+                return;
+            }
+
+            // Create a regex to match the query
+            const regex = new RegExp(`(${query})`, 'gi');
+
+            // Check if the word exists in the content
+            if (content.textContent.toLowerCase().includes(query)) {
+                // Highlight matching words
+                content.innerHTML = content.innerHTML.replace(regex, '<mark class="highlight">$1</mark>');
+            } else {
+                // Show a popup if no match is found
+                showPopup('No matches found for your search query!');
+            }
+        }
+
+        function showPopup(message) {
+            // Create a popup div
+            const popup = document.createElement('div');
+            popup.className = 'popup';
+            popup.textContent = message;
+
+            // Append the popup to the body
+            document.body.appendChild(popup);
+
+            // Remove the popup after 3 seconds
+            setTimeout(() => {
+                popup.remove();
+            }, 3000);
         }
     </script>
 </body>

@@ -3,11 +3,11 @@
 session_start();
 
 // Database connection (replace with your actual credentials)
-$host = 'localhost';
-$user = 'root';
-$password = '';
-$dbname = 'offenseorbit';
-$conn = new mysqli($host, $user, $password, $dbname);
+$host = "sql302.infinityfree.com";  
+$username = "if0_37729401";        
+$password = "xOhEjKEk4uwo6AX";     
+$database = "if0_37729401_crms";   
+$conn = new mysqli($host, $username, $password, $database);
 
 // Check connection
 if ($conn->connect_error) {
@@ -62,10 +62,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_notifications']))
         ['Crime reported in your area. Stay alert.', '2024-11-21 10:00'],
         ['New safety guidelines released.', '2024-11-20 14:30']
     ]);
+
+
+
+// Ensure user information is provided only if logged in
+
     exit;
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -146,9 +150,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_notifications']))
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
+
     <div class="sidebar">
+    
         <h3>Citizen Dashboard</h3>
+       
+
+         <a href="#" onclick="redirectToHomepage()"><i class="fas fa-home"></i> Homepage</a>
         <a href="#" onclick="showFeature('reportCrime')">
             <i class="fas fa-exclamation-circle"></i> Report Crime
         </a>
@@ -166,7 +174,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_notifications']))
         </a>
     </div>
 
-    <!-- Main Content -->
     <div class="content">
         <div id="reportCrime" class="hidden">
             <h3>Report a Crime</h3>
@@ -222,6 +229,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_notifications']))
     </div>
 
     <script>
+
+
+
+
+
+
+
+
         function showFeature(feature) {
             document.querySelectorAll('.content > div').forEach(div => div.classList.add('hidden'));
             document.getElementById(feature).classList.remove('hidden');
@@ -230,10 +245,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_notifications']))
         document.getElementById('crimeReportForm').addEventListener('submit', function (e) {
             e.preventDefault();
             const formData = new FormData(this);
+            formData.append('submit_crime', true);
             axios.post('', formData)
-                .then(response => alert(response.data.message))
+                .then(response => {
+                    alert(response.data.message);
+                    this.reset();
+                })
                 .catch(error => console.error(error));
         });
+
+        function loadReports() {
+            axios.get('?fetch_reports=true')
+                .then(response => {
+                    const reportsList = document.getElementById('reportsList');
+                    reportsList.innerHTML = '';
+                    response.data.forEach(report => {
+                        const listItem = document.createElement('li');
+                        listItem.className = 'list-group-item';
+                        listItem.textContent = `${report.incident_type} - ${report.location} on ${report.report_date}`;
+                        reportsList.appendChild(listItem);
+                    });
+                })
+                .catch(error => console.error(error));
+        }
+
+        function loadEmergencyContacts() {
+            axios.get('?fetch_contacts=true')
+                .then(response => {
+                    const contactsList = document.getElementById('contactsList');
+                    contactsList.innerHTML = '';
+                    response.data.forEach(contact => {
+                        const listItem = document.createElement('li');
+                        listItem.className = 'list-group-item';
+                        listItem.textContent = `${contact[0]}: ${contact[1]}`;
+                        contactsList.appendChild(listItem);
+                    });
+                })
+                .catch(error => console.error(error));
+        }
+
+        function loadNotifications() {
+            axios.get('?fetch_notifications=true')
+                .then(response => {
+                    const notificationsList = document.getElementById('notificationsList');
+                    notificationsList.innerHTML = '';
+                    response.data.forEach(notification => {
+                        const notificationDiv = document.createElement('div');
+                        notificationDiv.className = 'alert alert-info';
+                        notificationDiv.textContent = `${notification[0]} (${notification[1]})`;
+                        notificationsList.appendChild(notificationDiv);
+                    });
+                })
+                .catch(error => console.error(error));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadReports();
+            loadEmergencyContacts();
+            loadNotifications();
+        });
+
+
+         function redirectToHomepage() {
+            window.location.href = "/"; // Change "/" to your desired homepage URL
+        }
     </script>
 </body>
 </html>

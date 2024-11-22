@@ -14,7 +14,6 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// Fetch Dashboard Metrics
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_metrics'])) {
     $result = $conn->query("
         SELECT 
@@ -22,7 +21,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_metrics'])) {
             (SELECT COUNT(*) FROM crime_reports WHERE status = 'Pending') AS pending_cases,
             (SELECT COUNT(*) FROM crime_reports WHERE status = 'Resolved') AS resolved_cases
     ");
-    echo json_encode($result->fetch_assoc());
+
+    if ($result) {
+        echo json_encode($result->fetch_assoc());
+    } else {
+        echo json_encode(['total_reports' => 0, 'pending_cases' => 0, 'resolved_cases' => 0]);
+    }
     exit;
 }
 
@@ -72,32 +76,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['addCrimeReport'])) {
     exit;
 }
 
-// Update Case Status
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_case_status'])) {
+// Update Case Details
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_case'])) {
     $case_id = $_POST['case_id'];
-    $new_status = $_POST['new_status'];
+    $incident_type = $_POST['incident_type'];
+    $incident_description = $_POST['incident_description'];
+    $location = $_POST['location'];
+    $status = $_POST['status'];
+    $priority_level = $_POST['priority_level'];
 
-    if (!empty($case_id) && !empty($new_status)) {
-        // Prepare and bind SQL query to update status
-        $query = $conn->prepare("
-            UPDATE crime_reports 
-            SET status = ?, last_updated = NOW() 
-            WHERE id = ?
-        ");
-        $query->bind_param("si", $new_status, $case_id);
+    $query = $conn->prepare("
+        UPDATE crime_reports
+        SET incident_type = ?, incident_description = ?, location = ?, status = ?, priority_level = ?, last_updated = NOW()
+        WHERE id = ?
+    ");
+    $query->bind_param("sssssi", $incident_type, $incident_description, $location, $status, $priority_level, $case_id);
 
-        if ($query->execute()) {
-            echo json_encode(['success' => true, 'message' => 'Case status updated successfully.']);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Failed to update case status.']);
-        }
+    if ($query->execute()) {
+        echo json_encode(['success' => true, 'message' => 'Case updated successfully.']);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Invalid case ID or status.']);
+        echo json_encode(['success' => false, 'message' => 'Failed to update case.']);
     }
     exit;
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -112,8 +114,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_case_status'])
             display: flex;
             margin: 0;
             font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
+            background: url('https://www.transparenttextures.com/patterns/dark-fabric.png'), 
+                linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(50,50,50,0.9));
+            background-size: cover;
+            color: white;
         }
+
         .sidebar {
             width: 250px;
             background-color: #2c3e50;
@@ -121,11 +127,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_case_status'])
             height: 100vh;
             position: fixed;
             padding: 20px;
+            overflow-y: auto;
         }
+
         .sidebar h3 {
             text-align: center;
             color: #ecf0f1;
         }
+
         .sidebar a {
             color: white;
             text-decoration: none;
@@ -133,14 +142,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_case_status'])
             display: block;
             border-radius: 5px;
         }
+
         .sidebar a:hover {
             background-color: #34495e;
         }
+
         .content {
             margin-left: 250px;
             padding: 20px;
             width: calc(100% - 250px);
         }
+
         .hidden {
             display: none;
         }
@@ -149,13 +161,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_case_status'])
 <body>
     <div class="sidebar">
         <h3>Officer Dashboard</h3>
-        <a href="#" onclick="showFeature('overview')"><i class="fas fa-chart-line"></i> Dashboard Overview</a>
+              <a href="#" onclick="redirectToHomepage()"><i class="fas fa-home"></i> Homepage</a>
+        <a href="#" onclick="showFeature('overview')"><i class="fas fa-chart-line"></i> Status</a>
         <a href="#" onclick="showFeature('addCrimeReport')"><i class="fas fa-plus-circle"></i> Add Crime Report</a>
         <a href="#" onclick="showFeature('manageReports')"><i class="fas fa-clipboard-list"></i> Manage Reports</a>
         <a href="#" onclick="showFeature('profile')"><i class="fas fa-user-circle"></i> Profile Management</a>
     </div>
 
     <div class="content">
+        <!-- Homepage -->
+        <div id="homepage">
+            <h1>Welcome to the Officer Dashboard</h1>
+            <p>Navigate through the sidebar to manage reports, add incidents, or view statistics.</p>
+        </div>
+
+   
         <!-- Dashboard Overview -->
         <div id="overview" class="hidden">
             <h3>Dashboard Overview</h3>
@@ -234,9 +254,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_case_status'])
         </div>
 
         <!-- Manage Reports -->
-        <div id="manageReports" class="hidden">
+        <div id="manageReports">
             <h3>Manage Reports</h3>
-            <table class="table">
+            <table class="table table-dark">
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -248,6 +268,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_case_status'])
                 </thead>
                 <tbody id="reportsTable"></tbody>
             </table>
+        </div>
+
+        <!-- Edit Case Form -->
+        <div id="editCaseForm" class="hidden">
+            <h3>Edit Case</h3>
+            <form id="caseEditForm">
+                <input type="hidden" id="editCaseId" name="case_id">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="editIncidentType" name="incident_type" placeholder="Incident Type" required>
+                </div>
+                <div class="mb-3">
+                    <textarea class="form-control" id="editIncidentDescription" name="incident_description" placeholder="Description" rows="3" required></textarea>
+                </div>
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="editLocation" name="location" placeholder="Location" required>
+                </div>
+                <div class="mb-3">
+                    <select class="form-select" id="editStatus" name="status" required>
+                        <option value="Pending">Pending</option>
+                        <option value="Under Investigation">Under Investigation</option>
+                        <option value="Resolved">Resolved</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <select class="form-select" id="editPriorityLevel" name="priority_level" required>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Case</button>
+                <button type="button" class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
+            </form>
         </div>
 
         <!-- Profile Management -->
@@ -274,16 +327,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_case_status'])
             document.getElementById(feature).classList.remove('hidden');
         }
 
-        // Fetch and display dashboard metrics
-        function loadMetrics() {
-            axios.get('?fetch_metrics=true').then(response => {
-                document.getElementById('totalReports').textContent = response.data.total_reports;
-                document.getElementById('pendingCases').textContent = response.data.pending_cases;
-                document.getElementById('resolvedCases').textContent = response.data.resolved_cases;
-            }).catch(error => {
+    
+    function loadMetrics() {
+        axios.get('?fetch_metrics=true')
+            .then(response => {
+                const data = response.data;
+                document.getElementById('totalReports').textContent = data.total_reports || 0;
+                document.getElementById('pendingCases').textContent = data.pending_cases || 0;
+                document.getElementById('resolvedCases').textContent = data.resolved_cases || 0;
+            })
+            .catch(error => {
                 console.error("Error fetching metrics:", error);
+                document.getElementById('totalReports').textContent = 'Error';
+                document.getElementById('pendingCases').textContent = 'Error';
+                document.getElementById('resolvedCases').textContent = 'Error';
             });
-        }
+    }
+
+    // Call loadMetrics when the page loads
+    document.addEventListener('DOMContentLoaded', loadMetrics);
+
 
         // Submit Crime Report Form
         document.getElementById("addCrimeForm").addEventListener("submit", function(e) {
@@ -322,26 +385,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_case_status'])
             });
         }
 
-        // Update status of a case
-        function updateStatus(caseId) {
-            const newStatus = document.getElementById(`status-${caseId}`).value;
-            axios.post("", {
-                update_case_status: true,
-                case_id: caseId,
-                new_status: newStatus
-            }).then(response => {
+          function loadReports() {
+            axios.get('?fetch_reports=true').then(response => {
+                const table = document.getElementById('reportsTable');
+                table.innerHTML = '';
+                response.data.forEach(report => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${report.id}</td>
+                        <td>${report.incident_type}</td>
+                        <td>${report.incident_description}</td>
+                        <td>${report.status}</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" onclick="editCase(${report.id}, '${report.incident_type}', '${report.incident_description}', '${report.location}', '${report.status}', '${report.priority_level}')">Edit</button>
+                        </td>`;
+                    table.appendChild(row);
+                });
+            });
+        }
+
+        function editCase(id, incidentType, description, location, status, priorityLevel) {
+            document.getElementById('editCaseForm').classList.remove('hidden');
+            document.getElementById('manageReports').classList.add('hidden');
+            document.getElementById('editCaseId').value = id;
+            document.getElementById('editIncidentType').value = incidentType;
+            document.getElementById('editIncidentDescription').value = description;
+            document.getElementById('editLocation').value = location;
+            document.getElementById('editStatus').value = status;
+            document.getElementById('editPriorityLevel').value = priorityLevel;
+        }
+
+        function cancelEdit() {
+            document.getElementById('editCaseForm').classList.add('hidden');
+            document.getElementById('manageReports').classList.remove('hidden');
+        }
+
+        document.getElementById('caseEditForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            formData.append('edit_case', true);
+            axios.post('', formData).then(response => {
                 alert(response.data.message);
+                cancelEdit();
                 loadReports();
             }).catch(error => {
                 console.error(error);
             });
-        }
-
-        // Load reports and metrics on page load
-        document.addEventListener("DOMContentLoaded", function() {
-            loadMetrics(); // Load metrics when the page loads
-            loadReports(); // Load the crime reports
         });
+
+        document.addEventListener('DOMContentLoaded', loadReports)
+
+        
+         function redirectToHomepage() {
+            window.location.href = "/"; // Change "/" to your desired homepage URL
+        }
     </script>
 </body>
 </html>
