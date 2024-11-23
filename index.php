@@ -142,9 +142,9 @@
         <div class="hero-content">
             <h1>Bridging Justice and Community with Trust and Technology</h1>
             <div class="cta-buttons">
-                <a href="#recipes">Explore </a>
-                <a href="#mealplanner">Add a Case</a>
-                <a href="#bmi">Wanted List</a>
+                <a href="/others/about.php">About Us  </a>
+                <a href="/others/news.php">News Update</a>
+                <a href="/others/wanted.php">Wanted List</a>
             </div>
         </div>
 

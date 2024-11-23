@@ -86,7 +86,7 @@ $conn->close();
         }
 
         .top-bar {
-            background: linear-gradient(90deg, #3b4371, #f3904f);
+            background: linear-gradient(90deg, #092931,#3AC8DF,#092931);
             padding: 15px 20px;
             display: flex;
             justify-content: space-evenly;
