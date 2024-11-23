@@ -1,4 +1,79 @@
-<!DOCTYPE html>
+<?php
+// Database credentials
+$host = "sql302.infinityfree.com";
+$username = "if0_37729401";
+$password = "xOhEjKEk4uwo6AX";
+$database = "if0_37729401_crms";
+
+// Create connection
+$conn = new mysqli($host, $username, $password, $database);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Initialize variables
+$search_results = [];
+$message = "";
+
+// Handle form submission for reporting lost items
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["report_item"])) {
+    $name = $conn->real_escape_string($_POST["name"]);
+    $contact = $conn->real_escape_string($_POST["contact"]);
+    $item = $conn->real_escape_string($_POST["item"]);
+    $description = $conn->real_escape_string($_POST["description"]);
+    $date_lost = $conn->real_escape_string($_POST["date_lost"]);
+    $location = $conn->real_escape_string($_POST["location"]);
+    $category = $conn->real_escape_string($_POST["category"]);
+    $extra_field1 = isset($_POST["extra_field1"]) ? $conn->real_escape_string($_POST["extra_field1"]) : null;
+    $extra_field2 = isset($_POST["extra_field2"]) ? $conn->real_escape_string($_POST["extra_field2"]) : null;
+
+    $sql = "INSERT INTO lost_items (name, contact, item, description, date_lost, location, category, extra_field1, extra_field2)
+            VALUES ('$name', '$contact', '$item', '$description', '$date_lost', '$location', '$category', '$extra_field1', '$extra_field2')";
+
+    if ($conn->query($sql) === TRUE) {
+        $message = "Item reported successfully.";
+    } else {
+        $message = "Error: " . $conn->error;
+    }
+}
+
+// Handle form submission for searching lost items
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["search_items"])) {
+    $search_query = $conn->real_escape_string($_POST["search_query"]);
+
+    $sql = "SELECT * FROM lost_items WHERE item LIKE '%$search_query%' OR location LIKE '%$search_query%' OR description LIKE '%$search_query%'";
+    $result = $conn->query($sql);
+
+    if ($result && $result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $search_results[] = $row;
+        }
+    } else {
+        $message = "No matching items found.";
+    }
+}
+
+$view_reports = [];
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["view_reports"])) {
+    $user_contact = $conn->real_escape_string($_POST["user_contact"]);
+
+    $sql = "SELECT * FROM lost_items WHERE contact = '$user_contact'";
+    $result = $conn->query($sql);
+
+    if ($result && $result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $view_reports[] = $row;
+        }
+    } else {
+        $message = "No reports found for the given contact information.";
+    }
+}
+
+
+
+?><!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -167,11 +242,69 @@
             word-break: break-word;
             white-space: pre-wrap;
         }
+
+         table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table th, table td {
+            border: 1px solid #bdc3c7;
+            padding: 10px;
+            text-align: left;
+        }
+        table th {
+            background: #34495e;
+            color: white;
+        }
+        .message {
+            color: green;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+          .close-button:hover {
+            background: #c0392b;
+        }
+        .hidden {
+            display: none;
+        }
     </style>
+    <script>
+        function handleCategoryChange() {
+            const category = document.getElementById("category").value;
+            const extraFields = document.getElementById("extra-fields");
+
+            if (category === "electronics") {
+                extraFields.innerHTML = `
+                    <label for="extra_field1">Device Brand:</label>
+                    <input type="text" id="extra_field1" name="extra_field1">
+                    <label for="extra_field2">Serial Number:</label>
+                    <input type="text" id="extra_field2" name="extra_field2">
+                `;
+            } else if (category === "documents") {
+                extraFields.innerHTML = `
+                    <label for="extra_field1">Document Type:</label>
+                    <input type="text" id="extra_field1" name="extra_field1">
+                    <label for="extra_field2">Issuer:</label>
+                    <input type="text" id="extra_field2" name="extra_field2">
+                `;
+            } else {
+                extraFields.innerHTML = ``;
+            }
+        }
+          function closeResults() {
+            document.getElementById("results-section").classList.add("hidden");
+        }
+         
+        
+
+    </script>
 </head>
 <body>
     <div class="sidebar">
-        <a href="homepage.html">
+        <a href="/">
             <img src="https://img.icons8.com/material-rounded/24/home.png" alt="Home"> Homepage
         </a>
         <a href="#" onclick="showSection('form-container')">
@@ -183,71 +316,182 @@
         <a href="#" onclick="showSection('results-container')">
             <img src="https://img.icons8.com/material-outlined/24/show-property.png" alt="Reports"> View All Reports
         </a>
+          <a href="#" onclick="showSection('notification')">
+          <img width="64" height="64" src="https://img.icons8.com/nolan/64/appointment-reminders.png" alt="appointment-reminders"/>
+        <i class="fas fa-bell"></i> Notifications
+    </a>
+    <a href="#" onclick="showSection('contact-container')">
+    <img width="50" height="50" src="https://img.icons8.com/ios-filled/50/phone-disconnected.png" alt="phone-disconnected"/>
+        <i class="fas fa-phone"></i> Contact
+    </a>
     </div>
     <div class="main-content">
         <h1 id="page-title">Welcome to the Lost and Found Portal</h1>
 
+
+      
+         <!-- Display Message -->
+        <?php if (!empty($message)) : ?>
+            <p class="message"><?php echo htmlspecialchars($message); ?></p>
+        <?php endif; ?>
+
         <!-- Report Lost Item Section -->
         <div id="form-container" class="form-container">
-            <h2>Report a Lost Item</h2>
-            <form id="lost-form">
-                <div class="form-group">
-                    <label for="name">Your Name (optional):</label>
-                    <input type="text" id="name" placeholder="Enter your name">
-                </div>
-                <div class="form-group">
-                    <label for="type">Category:</label>
-                    <select id="type" onchange="updateFields()">
-                        <option value="item">Item</option>
-                        <option value="phone">Phone</option>
-                        <option value="car">Car</option>
-                        <option value="person">Person</option>
-                        <option value="pet">Pet</option>
-                    </select>
-                </div>
-                <div id="custom-fields"></div>
-                <div class="form-group">
-                    <label for="description">Description:</label>
-                    <textarea id="description" rows="4" placeholder="Provide details about the lost item"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="location">Last Seen Location:</label>
-                    <input type="text" id="location" placeholder="Enter location">
-                </div>
-                <div class="form-group">
-                    <label for="contact">Contact Information:</label>
-                    <input type="text" id="contact" placeholder="Enter your phone or email">
-                </div>
-                <button type="button" onclick="submitReport()">Submit</button>
+           <h2>Report a Lost Item</h2>
+            <form method="POST">
+                <label for="name">Your Name:</label>
+                <input type="text" id="name" name="name" required>
+                <label for="contact">Contact Information:</label>
+                <input type="text" id="contact" name="contact" required>
+                <label for="item">Item Name:</label>
+                <input type="text" id="item" name="item" required>
+                <label for="description">Description:</label>
+                <textarea id="description" name="description" rows="4" required></textarea>
+                <label for="date_lost">Date Lost:</label>
+                <input type="date" id="date_lost" name="date_lost" required>
+                <label for="location">Location Lost:</label>
+                <input type="text" id="location" name="location" required>
+                <label for="category">Category:</label>
+                <select id="category" name="category" onchange="handleCategoryChange()" required>
+                    <option value="">Select a category</option>
+                    <option value="electronics">Electronics</option>
+                    <option value="documents">Documents</option>
+                    <option value="others">Others</option>
+                </select>
+                <div id="extra-fields"></div>
+                <button type="submit" name="report_item">Submit</button>
             </form>
         </div>
 
         <!-- Search Lost Items Section -->
         <div id="search-container" class="search-container">
             <h2>Search Lost Items</h2>
-            <div class="form-group">
-                <label for="search">Search Keyword:</label>
-                <input type="text" id="search" placeholder="Enter keyword (e.g., bag, dog)">
-            </div>
-            <button onclick="searchReports()">Search</button>
+            <form method="POST">
+                <label for="search_query">Search Query:</label>
+                <input type="text" id="search_query" name="search_query" required>
+                <button type="submit" name="search_items">Search</button>
+            </form>
         </div>
 
-        <!-- View All Reports Section -->
+        <!-- Display Search Results -->
+        <?php if (!empty($search_results)) : ?>
+            <div class="results-section">
+                <h2>Search Results</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Contact</th>
+                            <th>Item</th>
+                            <th>Description</th>
+                            <th>Date Lost</th>
+                            <th>Location</th>
+                            <th>Category</th>
+                            <th>Extra Field 1</th>
+                            <th>Extra Field 2</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($search_results as $result) : ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($result["name"]); ?></td>
+                                <td><?php echo htmlspecialchars($result["contact"]); ?></td>
+                                <td><?php echo htmlspecialchars($result["item"]); ?></td>
+                                <td><?php echo htmlspecialchars($result["description"]); ?></td>
+                                <td><?php echo htmlspecialchars($result["date_lost"]); ?></td>
+                                <td><?php echo htmlspecialchars($result["location"]); ?></td>
+                                <td><?php echo htmlspecialchars($result["category"]); ?></td>
+                                <td><?php echo htmlspecialchars($result["extra_field1"]); ?></td>
+                                <td><?php echo htmlspecialchars($result["extra_field2"]); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+       
+
+
+
+
         <div id="results-container" class="results-container">
-            <h2>All Lost Reports</h2>
-            <div id="results"></div>
+            <h2>View All Reports</h2>
+            <form method="POST">
+                <label for="user_contact">Enter Your Contact Information:</label>
+                <input type="text" id="user_contact" name="user_contact" required>
+                <button type="submit" name="view_reports">View My Reports</button>
+            </form>
         </div>
 
-        <!-- Notifications Section (Made Visible After View All Reports Section) -->
-        <div id="notifications-container" class="notifications-container" style="display: block;">
-            <h2>Notifications</h2>
-            <div id="notifications">
-                <p>No new notifications.</p>
+        <!-- Display User Reports -->
+        <?php if (!empty($view_reports)) : ?>
+            <div class="results-section" id="results-section">
+                <button class="close-button" onclick="closeResults()">Close</button>
+                <h2>Your Submitted Reports</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Contact</th>
+                            <th>Item</th>
+                            <th>Description</th>
+                            <th>Date Lost</th>
+                            <th>Location</th>
+                            <th>Category</th>
+                            <th>Extra Field 1</th>
+                            <th>Extra Field 2</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($view_reports as $report) : ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($report["name"]); ?></td>
+                                <td><?php echo htmlspecialchars($report["contact"]); ?></td>
+                                <td><?php echo htmlspecialchars($report["item"]); ?></td>
+                                <td><?php echo htmlspecialchars($report["description"]); ?></td>
+                                <td><?php echo htmlspecialchars($report["date_lost"]); ?></td>
+                                <td><?php echo htmlspecialchars($report["location"]); ?></td>
+                                <td><?php echo htmlspecialchars($report["category"]); ?></td>
+                                <td><?php echo htmlspecialchars($report["extra_field1"]); ?></td>
+                                <td><?php echo htmlspecialchars($report["extra_field2"]); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
             </div>
-        </div>
+        <?php endif; ?>
     </div>
 
+
+    <div id="notification" class="form-container hidden">
+    <h1>No Notifications </h1>
+    
+</div>
+   
+
+
+<div id="contact-container" class="form-container hidden">
+    <h2>Emergency Contacts in Bangladesh</h2>
+    <ul>
+        <li><strong>Police:</strong> 999</li>
+        <li><strong>Fire Service:</strong> 999</li>
+        <li><strong>Ambulance:</strong> 999</li>
+        <li><strong>National Helpline:</strong> 109</li>
+        <li><strong>Women and Child Abuse Prevention:</strong> 10921</li>
+    </ul>
+</div>
+
+
+
+
+       </div>
+
     <script>
+
+
+
+   
+
         const reports = [];
         const notifications = [];
 
@@ -256,9 +500,7 @@
                 section.style.display = 'none';
             });
             document.getElementById(sectionId).style.display = 'block';
-            if (sectionId === 'notifications-container') {
-                loadNotifications();
-            }
+            
         }
 
         function updateFields() {
@@ -348,5 +590,6 @@
             });
         }
     </script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 </body>
 </html>
