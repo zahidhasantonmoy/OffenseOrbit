@@ -1,5 +1,72 @@
 <?php include("includes/header.php"); ?>
+<?php
+// Database connection
+$host = "sql302.infinityfree.com";
+$username = "if0_37729401";
+$password = "xOhEjKEk4uwo6AX";
+$database = "if0_37729401_crms";
 
+// Create connection
+$conn = new mysqli($host, $username, $password, $database);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Fetch statistics by incident type
+$incident_data = [];
+$sql = "SELECT incident_type, COUNT(*) as total FROM crime_reports GROUP BY incident_type";
+$result = $conn->query($sql);
+if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $incident_data[] = $row;
+    }
+}
+
+
+// Fetch the latest 3 news articles from the database
+$sql = "SELECT * FROM news ORDER BY created_at DESC LIMIT 3";
+$result = $conn->query($sql);
+
+// Fetch data into an array
+$posts = [];
+if ($result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $posts[] = $row;
+    }
+} else {
+    $message = "No news articles available.";
+}
+
+// Handle Comment Post Submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['comment_submit'])) {
+    $news_id = $_POST['news_id'];
+    $author = $_POST['author'];
+    $comment = $_POST['comment'];
+
+    // Insert the comment into the database
+    $comment_sql = "INSERT INTO comments (news_id, author, comment) VALUES ('$news_id', '$author', '$comment')";
+    if ($conn->query($comment_sql) === TRUE) {
+        $message = "Comment posted successfully!";
+    } else {
+        $message = "Error posting comment: " . $conn->error;
+    }
+}
+
+
+
+// Fetch wanted persons
+$wanted_persons = [];
+$sql = "SELECT name, last_known_location, reward, image_path FROM wanted_list ORDER BY id DESC LIMIT 20"; // Fetch up to 20 entries
+$result = $conn->query($sql);
+
+if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $wanted_persons[] = $row;
+    }
+}
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -66,7 +133,7 @@
             display: inline-block;
             margin: 10px 15px;
             padding: 15px 25px;
-            background-color: #f76c6c;
+            background-color: #46c4d8de;
             color: white;
             text-decoration: none;
             font-size: 1.2em;
@@ -77,7 +144,7 @@
 
         /* Hover effect for CTA buttons */
         .mealmap-hero .hero-content .cta-buttons a:hover {
-            background-color: #d65a5a;
+            background-color: #004256de;
             transform: scale(1.1); /* Button size increase on hover */
         }
 
@@ -125,7 +192,9 @@
         .mealmap-hero .carousel-nav button:hover {
             background-color: rgba(0, 0, 0, 0.7);
         }
+     
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -133,17 +202,18 @@
     <div class="mealmap-hero">
         <!-- Image Carousel -->
         <div class="carousel">
-            <img src="Meal+3.jpg" alt="Meal 1" class="active">
-            <img src="Meal+22.jpg" alt="Meal 2">
-            <img src="Meal+1.jpg" alt="Meal 3">
+            <img src="1.png" alt="Meal 1" class="active">
+            <img src="2.png" alt="Meal 2">
+            <img src="3.png" alt="Meal 3">
         </div>
 
         <!-- Hero Content (Text & CTA buttons) -->
         <div class="hero-content">
-            <h1>Bridging Justice and Community with Trust and Technology</h1>
+            <h1 >Bridging Justice and Community with Trust and Technology</h1>
+
             <div class="cta-buttons">
                 <a href="/others/about.php">About Us  </a>
-                <a href="/others/news.php">News Update</a>
+                <a href="/others/updatenews.php">News Update</a>
                 <a href="/others/wanted.php">Wanted List</a>
             </div>
         </div>
@@ -284,12 +354,12 @@
       <h3 style="font-size: 1.5rem; color: #3498db; margin-bottom: 15px;">Public Services</h3>
       <button id="public-services-btn" style="background-color: #3498db; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1rem;">Explore Services</button>
       <ul id="public-services-list" style="display: none; margin-top: 20px; text-align: left; color: #2c3e50;">
-        <li><a href="#lost-found" style="text-decoration: none; color: #3498db;">Lost & Found</a></li>
-        <li><a href="#clearance" style="text-decoration: none; color: #3498db;">Police Clearance Certificates</a></li>
-        <li><a href="#crime-reporting" style="text-decoration: none; color: #3498db;">Crime Reporting</a></li>
-        <li><a href="#awareness" style="text-decoration: none; color: #3498db;">Public Awareness Campaigns</a></li>
-        <li><a href="#emergency-relief" style="text-decoration: none; color: #3498db;">Emergency Relief Services</a></li>
-        <li><a href="#disaster-response" style="text-decoration: none; color: #3498db;">Disaster Response Coordination</a></li>
+        <li><a href="/other/lost.php" style="text-decoration: none; color: #3498db;">Lost </a></li>
+        <li><a href="/other/lost.php" style="text-decoration: none; color: #3498db;"> Found</a></li>
+        <li><a href="/dashboard/citizen_dashboard.php" style="text-decoration: none; color: #3498db;">Crime Reporting</a></li>
+        <li><a href="others/wanted.php" style="text-decoration: none; color: #3498db;">Wanted list</a></li>
+        <li><a href="/others/news.php" style="text-decoration: none; color: #3498db;">News </a></li>
+        <li><a href="/others/about.php" style="text-decoration: none; color: #3498db;">About Us</a></li>
       </ul>
     </div>
 
@@ -298,12 +368,12 @@
       <h3 style="font-size: 1.5rem; color: #e74c3c; margin-bottom: 15px;">Police Services</h3>
       <button id="police-services-btn" style="background-color: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1rem;">Explore Services</button>
       <ul id="police-services-list" style="display: none; margin-top: 20px; text-align: left; color: #2c3e50;">
-        <li><a href="#assignments" style="text-decoration: none; color: #e74c3c;">Officer Assignments</a></li>
-        <li><a href="#case-management" style="text-decoration: none; color: #e74c3c;">Case Management</a></li>
-        <li><a href="#helpline" style="text-decoration: none; color: #e74c3c;">Emergency Helpline</a></li>
-        <li><a href="#security-reports" style="text-decoration: none; color: #e74c3c;">Security Reports</a></li>
-        <li><a href="#criminal-investigation" style="text-decoration: none; color: #e74c3c;">Criminal Investigation Services</a></li>
-        <li><a href="#forensics" style="text-decoration: none; color: #e74c3c;">Forensic Analysis</a></li>
+        <li><a href="/other/lost.php" style="text-decoration: none; color: #3498db;">Lost </a></li>
+        <li><a href="/other/lost.php" style="text-decoration: none; color: #3498db;"> Found</a></li>
+        <li><a href="/dashboard/officer_dashboard.php" style="text-decoration: none; color: #3498db;">Crime Reporting</a></li>
+        <li><a href="others/wanted.php" style="text-decoration: none; color: #3498db;">Wanted list</a></li>
+        <li><a href="/others/news.php" style="text-decoration: none; color: #3498db;">News </a></li>
+        <li><a href="/others/about.php" style="text-decoration: none; color: #3498db;">About Us</a></li>
       </ul>
     </div>
 
@@ -340,13 +410,13 @@
     <div class="gallery-container" style="display: flex; justify-content: space-between; gap: 20px; align-items: center;">
       <!-- Video on Left -->
       <div class="video-container" style="flex: 1; text-align: center;">
-        <iframe width="100%" height="315" src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        <iframe width="560" height="315" src="https://www.youtube.com/embed/pixdywWX6qc?si=esFc_4f1RcpnCcOj" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
         <p style="margin-top: 10px; color: #2c3e50;">Police Outreach Video - A Community Awareness Program</p>
       </div>
       
       <!-- Image on Right -->
       <div class="image-container" style="flex: 1; text-align: center;">
-        <img id="galleryImage" src="images/gallery1.jpg" alt="Community Awareness Campaign" style="width: 80%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+        <img id="galleryImage" src="pg.jpg" alt="Community Awareness Campaign" style="width: 80%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
         <p id="imageDescription" style="margin-top: 10px; color: #2c3e50;">Community Awareness Campaign</p>
         <!-- Next Image Button -->
         <button onclick="nextImage()" style="margin-top: 10px; background-color: #3498db; color: white; padding: 10px 20px; border-radius: 5px; font-size: 1rem; border: none; cursor: pointer;">Next Image</button>
@@ -376,336 +446,381 @@
 
 
 
+<style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
 
+        .container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px;
+            padding: 20px;
+            flex-wrap: wrap;
+        }
 
-  <style>
-    .container {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 20px;
-        flex-wrap: wrap;
-    }
+        /* Emergency Contacts and Statistics Styling */
+        .emergency-container, .stats-container {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
 
-    /* Emergency Contacts */
-    .emergency-container, .stats-container {
-        flex: 1;
-        min-width: 300px;
-        padding: 20px;
-        background-color: #ffffff;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    }
+        .emergency-header, .stats-header {
+            text-align: center;
+            padding: 15px 0;
+            background-color: #007bff;
+            color: white;
+            border-radius: 10px 10px 0 0;
+        }
 
-    .emergency-header, .stats-header {
-        text-align: center;
-        padding: 15px 0;
-        background-color: #007bff;
-        color: white;
-        border-radius: 10px 10px 0 0;
-    }
+        .emergency-header h2, .stats-header h2 {
+            margin: 0;
+            font-size: 22px;
+        }
 
-    .emergency-header h2, .stats-header h2 {
-        margin: 0;
-        font-size: 22px;
-    }
+        .emergency-list {
+            margin: 0;
+            padding: 20px;
+            list-style: none;
+        }
 
-    .emergency-list {
-        margin: 0;
-        padding: 20px;
-        list-style: none;
-    }
+        .emergency-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
 
-    .emergency-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px;
-        border-bottom: 1px solid #e2e8f0;
-    }
+        .emergency-item:last-child {
+            border-bottom: none;
+        }
 
-    .emergency-item:last-child {
-        border-bottom: none;
-    }
+        .emergency-item h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #333;
+        }
 
-    .emergency-item h3 {
-        margin: 0;
-        font-size: 16px;
-        color: #333;
-    }
+        .emergency-item a {
+            font-size: 18px;
+            font-weight: bold;
+            color: #e3342f;
+            text-decoration: none;
+        }
 
-    .emergency-item a {
-        font-size: 18px;
-        font-weight: bold;
-        color: #e3342f;
-        text-decoration: none;
-    }
+        .emergency-item a:hover {
+            text-decoration: underline;
+        }
 
-    .emergency-item a:hover {
-        text-decoration: underline;
-    }
+        /* Crime Statistics Styling */
+        .stats-header p {
+            color: #555;
+        }
 
-    /* Crime Statistics */
-    .stats-header p {
-        color: #555;
-    }
+        .progress-bar-section {
+            margin-top: 20px;
+        }
 
-    .progress-bar-section {
-        margin-top: 20px;
-    }
+        .progress-item {
+            margin-bottom: 20px;
+        }
 
-    .progress-item {
-        margin-bottom: 20px;
-    }
+        .progress-label {
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 5px;
+        }
 
-    .progress-label {
-        font-size: 16px;
-        color: #555;
-        margin-bottom: 5px;
-    }
+        .progress-bar {
+            background-color: #e0e0e0;
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+            height: 20px;
+        }
 
-    .progress-bar {
-        background-color: #e0e0e0;
-        border-radius: 20px;
-        overflow: hidden;
-        position: relative;
-        height: 20px;
-    }
+        .progress-fill {
+            height: 100%;
+            border-radius: 20px;
+            line-height: 20px;
+            text-align: center;
+            color: white;
+            position: absolute;
+        }
 
-    .progress-fill {
-        height: 100%;
-        border-radius: 20px;
-        line-height: 20px;
-        text-align: center;
-        color: white;
-        position: absolute;
-    }
+        .data-counter {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
 
-    .dhaka {
-        width: 80%;
-        background-color: #3498db;
-    }
+        .counter-box {
+            text-align: center;
+            flex: 1;
+            margin: 0 10px;
+        }
 
-    .chittagong {
-        width: 65%;
-        background-color: #e74c3c;
-    }
+        .counter-box h3 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 10px;
+        }
 
-    .khulna {
-        width: 50%;
-        background-color: #2ecc71;
-    }
-
-    .sylhet {
-        width: 40%;
-        background-color: #f1c40f;
-    }
-
-    .data-counter {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 30px;
-    }
-
-    .counter-box {
-        text-align: center;
-        flex: 1;
-        margin: 0 10px;
-    }
-
-    .counter-box h3 {
-        font-size: 28px;
-        color: #333;
-        margin-bottom: 10px;
-    }
-
-    .counter-box p {
-        color: #777;
-    }
-</style>
+        .counter-box p {
+            color: #777;
+        }
+    </style>
 </head>
 <body>
 
 <div class="container">
-<!-- Emergency Contacts -->
-<div class="emergency-container">
-    <div class="emergency-header">
-        <h2>Bangladesh Emergency Contacts</h2>
-    </div>
-    <ul class="emergency-list">
-        <li class="emergency-item">
-            <h3>National Emergency Service</h3>
-            <a href="tel:999">999</a>
-        </li>
-        <li class="emergency-item">
-            <h3>Fire Service</h3>
-            <a href="tel:16163">16163</a>
-        </li>
-        <li class="emergency-item">
-            <h3>Ambulance</h3>
-            <a href="tel:199">199</a>
-        </li>
-        <li class="emergency-item">
-            <h3>Women and Child Helpline</h3>
-            <a href="tel:109">109</a>
-        </li>
-        <li class="emergency-item">
-            <h3>Cyber Crime Helpline</h3>
-            <a href="tel:12345">12345</a>
-        </li>
-        <li class="emergency-item">
-            <h3>Tourism Police</h3>
-            <a href="tel:98765">98765</a>
-        </li>
-        <li class="emergency-item">
-            <h3>Road Accident Helpline</h3>
-            <a href="tel:1122">1122</a>
-        </li>
-        <li class="emergency-item">
-            <h3>Anti-Corruption Hotline</h3>
-            <a href="tel:106">106</a>
-        </li>
-        <li class="emergency-item">
-            <h3>Gas Emergency Hotline</h3>
-            <a href="tel:16485">16485</a>
-        </li>
-        <li class="emergency-item">
-            <h3>Electricity Emergency</h3>
-            <a href="tel:19113">19113</a>
-        </li>
-    </ul>
-</div>
-
-<!-- Crime Statistics -->
-<div class="stats-container">
-    <div class="stats-header">
-        <h2>Crime Statistics</h2>
-        <p>A snapshot of recent crime trends in Bangladesh</p>
+    <!-- Emergency Contacts -->
+    <div class="emergency-container">
+        <div class="emergency-header">
+            <h2>Bangladesh Emergency Contacts</h2>
+        </div>
+        <ul class="emergency-list">
+            <li class="emergency-item">
+                <h3>National Emergency Service</h3>
+                <a href="tel:999">999</a>
+            </li>
+            <li class="emergency-item">
+                <h3>Fire Service</h3>
+                <a href="tel:16163">16163</a>
+            </li>
+            <li class="emergency-item">
+                <h3>Ambulance</h3>
+                <a href="tel:199">199</a>
+            </li>
+            <li class="emergency-item">
+                <h3>Women and Child Helpline</h3>
+                <a href="tel:109">109</a>
+            </li>
+            <li class="emergency-item">
+                <h3>Cyber Crime Helpline</h3>
+                <a href="tel:12345">12345</a>
+            </li>
+            <li class="emergency-item">
+                <h3>Tourism Police</h3>
+                <a href="tel:98765">98765</a>
+            </li>
+            <li class="emergency-item">
+                <h3>Road Accident Helpline</h3>
+                <a href="tel:1122">1122</a>
+            </li>
+            <li class="emergency-item">
+                <h3>Anti-Corruption Hotline</h3>
+                <a href="tel:106">106</a>
+            </li>
+            <li class="emergency-item">
+                <h3>Gas Emergency Hotline</h3>
+                <a href="tel:16485">16485</a>
+            </li>
+            <li class="emergency-item">
+                <h3>Electricity Emergency</h3>
+                <a href="tel:19113">19113</a>
+            </li>
+        </ul>
     </div>
 
-    <div class="progress-bar-section">
-        <div class="progress-item">
-            <div class="progress-label">Dhaka - 80% Reported Cases</div>
-            <div class="progress-bar">
-                <div class="progress-fill dhaka"></div>
-            </div>
+    <!-- Crime Statistics -->
+    <div class="stats-container">
+        <div class="stats-header">
+            <h2>Crime Statistics</h2>
+            <p>A snapshot of recent crime trends in Bangladesh</p>
         </div>
-        <div class="progress-item">
-            <div class="progress-label">Chittagong - 65% Reported Cases</div>
-            <div class="progress-bar">
-                <div class="progress-fill chittagong"></div>
-            </div>
-        </div>
-        <div class="progress-item">
-            <div class="progress-label">Khulna - 50% Reported Cases</div>
-            <div class="progress-bar">
-                <div class="progress-fill khulna"></div>
-            </div>
-        </div>
-        <div class="progress-item">
-            <div class="progress-label">Sylhet - 40% Reported Cases</div>
-            <div class="progress-bar">
-                <div class="progress-fill sylhet"></div>
-            </div>
-        </div>
-    </div>
 
-    <div class="data-counter">
-        <div class="counter-box">
-            <h3>500+</h3>
-            <p>Cases Solved</p>
+        <div class="progress-bar-section">
+            <?php foreach ($incident_data as $incident) : ?>
+                <?php
+                // Calculate percentage
+                $total_cases = array_sum(array_column($incident_data, 'total'));
+                $percentage = round(($incident['total'] / $total_cases) * 100, 2);
+                ?>
+                <div class="progress-item">
+                    <div class="progress-label">
+                        <?php echo htmlspecialchars($incident['incident_type']); ?> - <?php echo $percentage; ?>% Reported Cases
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: <?php echo $percentage; ?>%; background-color: <?php echo '#' . dechex(rand(0, 16777215)); ?>;">
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
         </div>
-        <div class="counter-box">
-            <h3>200+</h3>
-            <p>Pending Cases</p>
-        </div>
-        <div class="counter-box">
-            <h3>150+</h3>
-            <p>Convictions</p>
-        </div>
+
+        
     </div>
 </div>
+
+
+
+ <style>
+    /* Unique Styles for Wanted List with Animation */
+    .wanted-container {
+        max-width: 1200px;
+        margin: 50px auto;
+        padding: 20px;
+        background-color: #f4f4f4;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .wanted-header {
+        text-align: center;
+        margin-bottom: 30px;
+        animation: fadeIn 1s ease-in-out;
+    }
+
+    .wanted-header h2 {
+        font-size: 2.5rem;
+        color: #2c3e50;
+    }
+
+    .wanted-header p {
+        color: #7f8c8d;
+        font-size: 1rem;
+    }
+
+    .wanted-slideshow {
+        display: flex;
+        gap: 20px;
+        transition: transform 1s ease-in-out;
+    }
+
+    .wanted-card {
+        flex: 1;
+        min-width: 250px;
+        max-width: 250px;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        text-align: center;
+        padding: 15px;
+    }
+
+    .wanted-card img {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+    }
+
+    .wanted-card h3 {
+        margin: 15px 0 10px;
+        font-size: 1.5rem;
+        color: #3498db;
+    }
+
+    .wanted-card p {
+        font-size: 1rem;
+        color: #555;
+        margin: 5px 0;
+    }
+
+    .wanted-controls {
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    .wanted-controls button {
+        background-color: #3498db;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        font-size: 1rem;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 0 10px;
+        transition: background-color 0.3s;
+    }
+
+    .wanted-controls button:hover {
+        background-color: #2980b9;
+    }
+
+    @media (max-width: 768px) {
+        .wanted-card {
+            max-width: 200px;
+            min-width: 200px;
+        }
+
+        .wanted-card img {
+            height: 150px;
+        }
+    }
+</style>
+
+<div class="wanted-container">
+    <div class="wanted-header">
+        <h2>Most Wanted Persons</h2>
+        <p>Help us locate these individuals by providing any useful information.</p>
+    </div>
+
+    <div class="wanted-slideshow" id="wantedSlideshow">
+        <?php foreach ($wanted_persons as $person) : ?>
+            <div class="wanted-card">
+                <img src="<?php echo htmlspecialchars('others/' . $person['image_path']); ?>" alt="Wanted Person">
+
+                <h3><?php echo htmlspecialchars($person['name']); ?></h3>
+                <p><strong>Last Known Location:</strong> <?php echo htmlspecialchars($person['last_known_location']); ?></p>
+                <p><strong>Reward:</strong> ৳<?php echo number_format($person['reward'], 2); ?></p>
+            </div>
+        <?php endforeach; ?>
+    </div>
+
+    <div class="wanted-controls">
+        <button id="prevSlide">Previous</button>
+        <button id="nextSlide">Next</button>
+    </div>
 </div>
 
+<script>
+    const slideshow = document.getElementById("wantedSlideshow");
+    const cards = document.querySelectorAll(".wanted-card");
+    const visibleCount = 4; // Number of cards visible at a time
+    const cardWidth = cards[0].offsetWidth + 20; // Include gap between cards
+    let currentIndex = 0;
 
+    // Adjust the slideshow's total width
+    slideshow.style.width = `${cardWidth * cards.length}px`;
 
+    // Go to the next slide
+    document.getElementById("nextSlide").addEventListener("click", () => {
+        if (currentIndex < cards.length - visibleCount) {
+            currentIndex++;
+            slideshow.style.transform = `translateX(-${cardWidth * currentIndex}px)`;
+        }
+    });
 
+    // Go to the previous slide
+    document.getElementById("prevSlide").addEventListener("click", () => {
+        if (currentIndex > 0) {
+            currentIndex--;
+            slideshow.style.transform = `translateX(-${cardWidth * currentIndex}px)`;
+        }
+    });
 
-
-
-
-
-
-
-
-
-<!-- Recent Reports and Updates Section -->
-<section id="recent-reports" style="background-color: #ecf0f1; padding: 50px 20px;">
-    <div style="text-align: center; margin-bottom: 30px;">
-      <h2 style="font-size: 2.5rem; color: #2c3e50;">Recent Reports and Updates</h2>
-      <p style="color: #7f8c8d;">Stay updated with the latest crime reports and their status.</p>
-    </div>
-  
-    <!-- Reports Feed or Table -->
-    <div style="overflow-x: auto;">
-      <table style="width: 100%; border-collapse: collapse; border-radius: 8px; background-color: white; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
-        <thead>
-          <tr style="background-color: #3498db; color: white;">
-            <th style="padding: 15px; text-align: left;">Report ID</th>
-            <th style="padding: 15px; text-align: left;">Crime Type</th>
-            <th style="padding: 15px; text-align: left;">Date Reported</th>
-            <th style="padding: 15px; text-align: left;">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr style="border-bottom: 1px solid #ddd;">
-            <td style="padding: 15px;">#001</td>
-            <td style="padding: 15px;">Missing Person</td>
-            <td style="padding: 15px;">Nov 15, 2024</td>
-            <td style="padding: 15px; color: green;">Case Solved: Missing Person Found in Dhaka</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #ddd;">
-            <td style="padding: 15px;">#002</td>
-            <td style="padding: 15px;">Burglary</td>
-            <td style="padding: 15px;">Nov 12, 2024</td>
-            <td style="padding: 15px; color: red;">Case Open: Investigation Ongoing</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #ddd;">
-            <td style="padding: 15px;">#003</td>
-            <td style="padding: 15px;">Drug Trafficking</td>
-            <td style="padding: 15px;">Nov 10, 2024</td>
-            <td style="padding: 15px; color: yellow;">Case Pending: Awaiting Evidence</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #ddd;">
-            <td style="padding: 15px;">#004</td>
-            <td style="padding: 15px;">Assault</td>
-            <td style="padding: 15px;">Nov 7, 2024</td>
-            <td style="padding: 15px; color: green;">Case Solved: Perpetrator Arrested</td>
-          </tr>
-          <tr style="border-bottom: 1px solid #ddd;">
-            <td style="padding: 15px;">#005</td>
-            <td style="padding: 15px;">Robbery</td>
-            <td style="padding: 15px;">Nov 5, 2024</td>
-            <td style="padding: 15px; color: red;">Case Open: Suspect at Large</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  
-    <!-- View All Reports Button -->
-    <div style="text-align: center; margin-top: 30px;">
-      <a href="#view-all-reports" style="background-color: #3498db; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-size: 1.2rem; cursor: pointer;">View All Reports</a>
-    </div>
-  </section>
-  
-
-
-
-
-
-
-
-
+    // Auto-scroll every 5 seconds
+    setInterval(() => {
+        if (currentIndex < cards.length - visibleCount) {
+            currentIndex++;
+        } else {
+            currentIndex = 0; // Reset to the beginning
+        }
+        slideshow.style.transform = `translateX(-${cardWidth * currentIndex}px)`;
+    }, 5000);
+</script>
 
 
 
@@ -1000,6 +1115,8 @@
 
 
 
+
+
 <!-- Main Content Section -->
 <div class="main-content">
     <!-- Blog Section -->
@@ -1007,73 +1124,28 @@
         <h1 class="section-title">Latest News and Updates</h1>
         
         <div class="blog-posts">
-            <!-- Blog Post 1 -->
-            <div class="blog-post" id="post-1">
-                <h2 class="blog-post-title">Crime Prevention Tips: Stay Safe This Winter</h2>
-                <div class="blog-post-meta">November 18, 2024 | By Police Department</div>
-                <img src="images/crime1.jpg" alt="Winter Safety Tips" class="blog-post-image">
-                <div class="blog-post-content">
-                    <p>This winter, it's essential to stay aware of your surroundings. Ensure your home is well-lit and lock all doors and windows...</p>
-                </div>
-                
-                <!-- Comments Section -->
-                <div class="comments-section">
-                    <div class="comment">
-                        <div class="comment-author">John Doe</div>
-                        <div class="comment-text">Great tips! I'll make sure to follow them this winter.</div>
+            <?php foreach ($posts as $index => $post): ?>
+                <div class="blog-post" id="post-<?php echo $index + 1; ?>" style="display: <?php echo $index === 0 ? 'block' : 'none'; ?>;">
+                    <h2 class="blog-post-title"><?php echo htmlspecialchars($post['title']); ?></h2>
+                    <div class="blog-post-meta"><?php echo date('F j, Y', strtotime($post['created_at'])); ?> | By <?php echo htmlspecialchars($post['author']); ?></div>
+                    <img src="uploads/<?php echo htmlspecialchars($post['feature_image']); ?>" alt="Feature Image" class="blog-post-image">
+                    <div class="blog-post-content">
+                        <p><?php echo htmlspecialchars(substr($post['content'], 0, 150)); ?>...</p>
                     </div>
-                    <div class="comment-form">
-                        <input type="text" placeholder="Add a comment..." class="comment-input">
-                        <button type="button" class="comment-btn">Post</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Blog Post 2 -->
-            <div class="blog-post" id="post-2" style="display: none;">
-                <h2 class="blog-post-title">Crime Statistics Report for 2024</h2>
-                <div class="blog-post-meta">November 10, 2024 | By Police Department</div>
-                <img src="images/crime2.jpg" alt="Crime Statistics" class="blog-post-image">
-                <div class="blog-post-content">
-                    <p>Crime rates have decreased by 10%, but property crimes remain a concern. Read the full report for more details...</p>
-                </div>
-
-                <!-- Comments Section -->
-                <div class="comments-section">
-                    <div class="comment">
-                        <div class="comment-author">Ahmed Khan</div>
-                        <div class="comment-text">It’s good to see a reduction in crime, but we still need more efforts on property security.</div>
-                    </div>
-
-                    <div class="comment-form">
-                        <input type="text" placeholder="Add a comment..." class="comment-input">
-                        <button type="button" class="comment-btn">Post</button>
+                    
+                    <!-- Comments Section -->
+                    <div class="comments-section">
+                        <div class="comment">
+                            <div class="comment-author">Zahid Hasan</div>
+                            <div class="comment-text">Great tips! I'll make sure to follow them this winter.</div>
+                        </div>
+                        <div class="comment-form">
+                            <input type="text" placeholder="Add a comment..." class="comment-input">
+                            <button type="button" class="comment-btn">Post</button>
+                        </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Blog Post 3 -->
-            <div class="blog-post" id="post-3" style="display: none;">
-                <h2 class="blog-post-title">Bangladesh Police Tackling Rising Cybercrime</h2>
-                <div class="blog-post-meta">November 5, 2024 | By Bangladesh Police</div>
-                <img src="images/crime3.jpg" alt="Cybercrime News" class="blog-post-image">
-                <div class="blog-post-content">
-                    <p>Bangladesh Police have launched new measures to combat the growing issue of cybercrime, including phishing attacks and online scams...</p>
-                </div>
-
-                <!-- Comments Section -->
-                <div class="comments-section">
-                    <div class="comment">
-                        <div class="comment-author">Sara Rahman</div>
-                        <div class="comment-text">This is an important issue. Glad to see the police taking action against cybercrime!</div>
-                    </div>
-
-                    <div class="comment-form">
-                        <input type="text" placeholder="Add a comment..." class="comment-input">
-                        <button type="button" class="comment-btn">Post</button>
-                    </div>
-                </div>
-            </div>
+            <?php endforeach; ?>
 
             <!-- Navigation Buttons -->
             <div class="navigation-btns-container">
@@ -1249,7 +1321,7 @@
 <!-- Script for toggling posts -->
 <script>
     let currentPost = 1;
-    const totalPosts = 3; // Total number of posts
+    const totalPosts = <?php echo count($posts); ?>; // Total number of posts
 
     document.getElementById('nextPostBtn').addEventListener('click', function() {
         // Hide the current post
@@ -1281,4 +1353,5 @@
         document.getElementById(`post-${currentPost}`).style.display = 'block';
     });
 </script>
+
 <?php include_once('includes/footer.php'); ?>

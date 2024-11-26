@@ -134,7 +134,30 @@ $conn->close();
 
 
 
-         
+          .emergency-button {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background-color: red;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      z-index: 1000;
+    }
+    .emergency-button:hover {
+      background-color: darkred;
+    }
+    .emergency-icon {
+      font-size: 24px;
+    }
+
 
         .highlight {
             background-color: yellow;
@@ -316,14 +339,30 @@ $conn->close();
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
 </head>
 <body>
+
+
+  <button class="emergency-button" onclick="callEmergency()">
+    <span class="emergency-icon">🚨</span>
+  </button>
+
+  <script>
+    // JavaScript function to trigger the emergency call
+    function callEmergency() {
+      window.location.href = 'tel:999'; // Initiates a phone call to the emergency number
+    }
+  </script>
+
+
+
     <div class="top-bar">
         <div class="top-bar-left">
             <a href="/" class="brand">OffenseOrbit</a>
-            <button onclick="alert('Lost functionality')">Lost</button>
-            <button onclick="alert('Found functionality')">Found</button>
+           <button onclick="window.location.href='http://offenseorbit.000.pe/others/lost.php'">Lost</button>
+<button onclick="window.location.href='http://offenseorbit.000.pe/others/found.php'">Found</button>
+
             <div class="search-bar">
-                <input type="text" id="search" placeholder="Search for text..." />
-        <button onclick="searchPage()">Search</button>
+                <input type="text" id="search" placeholder="Search for text...">
+    <button onclick="searchPage()">Search</button>
             </div>
         </div>
         <div class="top-bar-right">
@@ -394,31 +433,61 @@ $conn->close();
             document.getElementById('welcome-section').style.display = 'none';
         }
 
-       function searchPage() {
-            // Get the search query and clean up existing highlights
-            const query = document.getElementById('search').value.trim().toLowerCase();
-            const content = document.getElementById('content');
+    function searchPage() {
+    const query = document.getElementById('search').value.trim().toLowerCase();
+    const content = document.getElementById('content');
 
-            // Remove existing highlights
-            content.innerHTML = content.innerHTML.replace(/<mark class="highlight">|<\/mark>/g, '');
-
-            // If no query provided, do nothing
-            if (query === "") {
-                return;
-            }
-
-            // Create a regex to match the query
-            const regex = new RegExp(`(${query})`, 'gi');
-
-            // Check if the word exists in the content
-            if (content.textContent.toLowerCase().includes(query)) {
-                // Highlight matching words
-                content.innerHTML = content.innerHTML.replace(regex, '<mark class="highlight">$1</mark>');
+    // Function to recursively remove all highlights
+    function removeHighlights(node) {
+        if (node.nodeType === 1) { // Element node
+            if (node.tagName === 'MARK') {
+                const parent = node.parentNode;
+                parent.replaceChild(document.createTextNode(node.textContent), node);
+                parent.normalize(); // Combine adjacent text nodes
             } else {
-                // Show a popup if no match is found
-                showPopup('No matches found for your search query!');
+                for (let child of node.childNodes) {
+                    removeHighlights(child);
+                }
             }
         }
+    }
+
+    // Remove all existing highlights
+    removeHighlights(content);
+
+    if (!query) {
+        return; // Exit if no query is provided
+    }
+
+    // Highlight matches
+    function highlightMatches(node) {
+        if (node.nodeType === 3) { // Text node
+            const text = node.textContent;
+            const index = text.toLowerCase().indexOf(query);
+            if (index !== -1) {
+                const mark = document.createElement('mark');
+                mark.className = 'highlight';
+                mark.textContent = text.substring(index, index + query.length);
+
+                const after = document.createTextNode(text.substring(index + query.length));
+                const before = document.createTextNode(text.substring(0, index));
+
+                const parent = node.parentNode;
+                parent.replaceChild(after, node);
+                parent.insertBefore(mark, after);
+                parent.insertBefore(before, mark);
+            }
+        } else if (node.nodeType === 1 && node.tagName !== 'MARK') {
+            for (let child of node.childNodes) {
+                highlightMatches(child);
+            }
+        }
+    }
+
+    // Apply highlights to the content
+    highlightMatches(content);
+}
+
 
         function showPopup(message) {
             // Create a popup div
@@ -437,3 +506,73 @@ $conn->close();
     </script>
 </body>
 </html>
+function searchPage() {
+    const query = document.getElementById('search').value.trim().toLowerCase();
+    const content = document.getElementById('content');
+
+    // Function to recursively remove all highlights
+    function removeHighlights(node) {
+        if (node.nodeType === 1) { // Element node
+            if (node.tagName === 'MARK') {
+                const parent = node.parentNode;
+                parent.replaceChild(document.createTextNode(node.textContent), node);
+                parent.normalize(); // Combine adjacent text nodes
+            } else {
+                for (let child of node.childNodes) {
+                    removeHighlights(child);
+                }
+            }
+        }
+    }
+
+    // Remove all existing highlights
+    removeHighlights(content);
+
+    if (!query) {
+        return; // Exit if no query is provided
+    }
+
+    // Highlight matches
+    function highlightMatches(node) {
+        if (node.nodeType === 3) { // Text node
+            const text = node.textContent;
+            const index = text.toLowerCase().indexOf(query);
+            if (index !== -1) {
+                const mark = document.createElement('mark');
+                mark.className = 'highlight';
+                mark.textContent = text.substring(index, index + query.length);
+
+                const after = document.createTextNode(text.substring(index + query.length));
+                const before = document.createTextNode(text.substring(0, index));
+
+                const parent = node.parentNode;
+                parent.replaceChild(after, node);
+                parent.insertBefore(mark, after);
+                parent.insertBefore(before, mark);
+            }
+        } else if (node.nodeType === 1 && node.tagName !== 'MARK') {
+            for (let child of node.childNodes) {
+                highlightMatches(child);
+            }
+        }
+    }
+
+    // Apply highlights to the content
+    highlightMatches(content);
+}
+
+
+        function showPopup(message) {
+            // Create a popup div
+            const popup = document.createElement('div');
+            popup.className = 'popup';
+            popup.textContent = message;
+
+            // Append the popup to the body
+            document.body.appendChild(popup);
+
+            // Remove the popup after 3 seconds
+            setTimeout(() => {
+                popup.remove();
+            }, 3000);
+        }

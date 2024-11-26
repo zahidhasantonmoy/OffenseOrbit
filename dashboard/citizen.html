@@ -166,6 +166,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_notifications']))
         <a href="#" onclick="showFeature('safetyMap')">
             <i class="fas fa-map-marked-alt"></i> Safety Map
         </a>
+          <a href="http://offenseorbit.000.pe/others/lost.php"><i class="fas fa-user-plus"></i> Lost Dashboard</a>
+         <a href="http://offenseorbit.000.pe/others/found.php"><i class="fas fa-user-plus"></i> Found dashboard </a>
         <a href="#" onclick="showFeature('emergencyContacts')">
             <i class="fas fa-phone-alt"></i> Emergency Contacts
         </a>
@@ -175,6 +177,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_notifications']))
     </div>
 
     <div class="content">
+    
+        <!-- Welcome Section -->
+        <div id="welcome">
+            <h3>Welcome to the Citizen Dashboard</h3>
+            <p>Here you can report crimes, track submitted reports, view safety maps, and access emergency contacts.</p>
+            <p>Navigate through the options on the left to explore the features.</p>
+        </div>
         <div id="reportCrime" class="hidden">
             <h3>Report a Crime</h3>
             <form id="crimeReportForm" enctype="multipart/form-data">
@@ -213,8 +222,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_notifications']))
         </div>
 
         <div id="safetyMap" class="hidden">
-            <h3>Safety Map</h3>
-            <div id="map" class="map-container"></div>
+    <h3>Safety Map</h3>
+    <div id="map" class="map-container"></div>
+</div>
+
+<script>
+    // Initialize the map
+    const map = L.map('map').setView([23.8103, 90.4125], 12); // Dhaka coordinates
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Define dangerous zones with markers and popup information
+    const dangerousZones = [
+        {
+            lat: 23.8103,
+            lng: 90.4125,
+            severity: 'Dangerous',
+            color: 'orange',
+            description: 'Dhaka Central - High risk of petty crimes.'
+        },
+        {
+            lat: 23.7621,
+            lng: 90.3792,
+            severity: 'More Dangerous',
+            color: 'red',
+            description: 'Dhanmondi - Frequent armed robberies and assaults.'
+        },
+        {
+            lat: 23.8322,
+            lng: 90.3371,
+            severity: 'Very Dangerous',
+            color: 'darkred',
+            description: 'Mirpur - Ongoing gang violence and street crime.'
+        }
+    ];
+
+    // Loop through the dangerous zones and add them to the map
+    dangerousZones.forEach(zone => {
+        L.circle([zone.lat, zone.lng], {
+            color: zone.color,
+            fillColor: zone.color,
+            fillOpacity: 0.5,
+            radius: 1000
+        }).addTo(map).bindPopup(`
+            <div class="popup-content">
+                <h4>${zone.severity} Zone</h4>
+                <p>${zone.description}</p>
+            </div>
+        `);
+    });
+</script>
+
         </div>
 
         <div id="emergencyContacts" class="hidden">
@@ -309,6 +370,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_notifications']))
          function redirectToHomepage() {
             window.location.href = "/"; // Change "/" to your desired homepage URL
         }
+
+
+        
     </script>
 </body>
 </html>

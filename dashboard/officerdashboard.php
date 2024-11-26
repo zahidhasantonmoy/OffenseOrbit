@@ -165,6 +165,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_case'])) {
         <a href="#" onclick="showFeature('overview')"><i class="fas fa-chart-line"></i> Status</a>
         <a href="#" onclick="showFeature('addCrimeReport')"><i class="fas fa-plus-circle"></i> Add Crime Report</a>
         <a href="#" onclick="showFeature('manageReports')"><i class="fas fa-clipboard-list"></i> Manage Reports</a>
+         <a href="http://offenseorbit.000.pe/others/add_wanted.php"><i class="fas fa-user-plus"></i> Add Wanted Person</a>
+           <a href="http://offenseorbit.000.pe/others/lost.php"><i class="fas fa-user-plus"></i> Lost Dashboard</a>
+         <a href="http://offenseorbit.000.pe/others/found.php"><i class="fas fa-user-plus"></i> Found dashboard </a>
         <a href="#" onclick="showFeature('profile')"><i class="fas fa-user-circle"></i> Profile Management</a>
     </div>
 
