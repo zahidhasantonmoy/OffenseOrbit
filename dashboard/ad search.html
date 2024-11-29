@@ -1,0 +1,345 @@
+<?php
+// Enable error reporting for debugging
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// Database connection
+$host = "sql302.infinityfree.com";
+$username = "if0_37729401";
+$password = "xOhEjKEk4uwo6AX";
+$database = "if0_37729401_crms";
+
+$conn = new mysqli($host, $username, $password, $database);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Handle Advanced Search
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['advance_search'])) {
+    $search_query = htmlspecialchars($_POST['search_query']);
+    $filter_criteria = $_POST['filter_criteria'];
+
+    $query_string = "SELECT * FROM criminal_data WHERE ";
+    if ($filter_criteria) {
+        // Search within the specified field
+        $query_string .= "$filter_criteria LIKE ?";
+    } else {
+        // Search across all fields
+        $query_string .= "name LIKE ? OR nid_no LIKE ? OR phone_no LIKE ? OR home_district LIKE ? OR crime_format LIKE ? OR case_id LIKE ?";
+    }
+
+    $query = $conn->prepare($query_string);
+
+    if (!$query) {
+        die(json_encode(['error' => "SQL Error: " . $conn->error]));
+    }
+
+    $search_term = '%' . $search_query . '%';
+    if ($filter_criteria) {
+        $query->bind_param("s", $search_term);
+    } else {
+        $query->bind_param("ssssss", $search_term, $search_term, $search_term, $search_term, $search_term, $search_term);
+    }
+
+    $query->execute();
+    $result = $query->get_result();
+
+    if ($result) {
+        $criminals = $result->fetch_all(MYSQLI_ASSOC);
+        echo json_encode($criminals);
+    } else {
+        echo json_encode(['error' => "Query Execution Error: " . $conn->error]);
+    }
+
+    exit;
+}
+
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Search</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+    <style>
+      body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: #333;
+            background: linear-gradient(135deg, #ff9a9e, #fad0c4, #fbc2eb, #a18cd1, #fad0c4);
+            background-size: 300% 300%;
+            animation: gradientShift 10s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(135deg, #3498db, #9b59b6);
+            color: white;
+            height: 100vh;
+            position: fixed;
+            padding: 20px 10px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            transition: width 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 60px;
+        }
+
+        .sidebar h2,
+        .sidebar a span {
+            display: inline-block;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed h2,
+        .sidebar.collapsed a span {
+            opacity: 0;
+        }
+
+        .sidebar a {
+            display: flex;
+            align-items: center;
+            color: white;
+            text-decoration: none;
+            padding: 10px 15px;
+            font-size: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            transition: background 0.3s, padding-left 0.3s;
+        }
+
+        .sidebar a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            padding-left: 20px;
+        }
+
+        .sidebar i {
+            margin-right: 10px;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+        }
+
+        .main-content.collapsed {
+            margin-left: 60px;
+        }
+
+        .container {
+            max-width: 1200px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: space-between;
+        }
+
+        .search-section input,
+        .search-section select,
+        .search-section button {
+            flex: 1 1 auto;
+            min-width: 150px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-size: 1rem;
+        }
+
+        .search-section button {
+            background-color: #5e60ce;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .results-table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        .results-table th {
+            background-color: #5e60ce;
+            color: white;
+        }
+
+        .footer {
+            background: #5e60ce;
+            color: white;
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+
+
+
+
+
+<div class="sidebar" id="sidebar">
+    <button onclick="toggleSidebar()">☰</button>
+    <h2>Menu</h2>
+    <a href="/"><i class="fas fa-home"></i> <span>Homepage</span></a>
+    <a href="/officer_dashboard.php"><i class="fas fa-tachometer-alt"></i> <span>Dashboard</span></a>
+</div>
+
+<div class="main-content" id="mainContent">
+    <div class="container">
+        <h1>Advanced Search</h1>
+        <div class="search-section">
+            <input type="text" id="searchQuery" name="search_query" placeholder="Enter search query...">
+            <select id="filterCriteria" name="filter_criteria">
+                <option value="">All Fields</option>
+                <option value="name">Name</option>
+                <option value="nid_no">NID</option>
+                <option value="phone_no">Phone</option>
+                <option value="home_district">Home District</option>
+                <option value="crime_format">Crime Format</option>
+                <option value="case_id">Case ID</option>
+            </select>
+            <button type="button" id="searchButton" onclick="performSearch()">Search</button>
+        </div>
+        <div class="results-table-container">
+            <table class="results-table" id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>Image</th>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>NID</th>
+                        <th>Phone</th>
+                        <th>Home District</th>
+                        <th>Crime Format</th>
+                        <th>Crime Count</th>
+                        <th>Wanted Status</th>
+                        <th>Case ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Results will be dynamically added here -->
+                </tbody>
+            </table>
+            <div id="noResults" style="display: none;">No matching records found.</div>
+        </div>
+    </div>
+    <div class="footer">
+        Advanced Image Search is Coming Soon
+    </div>
+</div>
+
+<script>
+    function toggleSidebar() {
+        const sidebar = document.getElementById("sidebar");
+        const mainContent = document.getElementById("mainContent");
+        sidebar.classList.toggle("collapsed");
+        mainContent.classList.toggle("collapsed");
+    }
+
+    function performSearch() {
+        const query = document.getElementById("searchQuery").value.trim();
+        const filter = document.getElementById("filterCriteria").value.trim();
+
+        if (!query) {
+            alert("Please enter a search query.");
+            return;
+        }
+
+        // Mock search functionality
+        console.log("Search Query:", query, "Filter:", filter);
+        // Implement Axios or fetch to send query to the backend
+    }
+
+
+     document.getElementById("advanceSearchForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    performSearch();
+});
+
+function performSearch() {
+    const query = document.getElementById("searchQuery").value.trim();
+    const filter = document.getElementById("filterCriteria").value.trim();
+
+    if (!query) {
+        alert("Please enter a search query.");
+        return;
+    }
+
+    // Send search query and filter value to the server
+    axios.post("", new URLSearchParams({ advance_search: true, search_query: query, filter_criteria: filter }))
+        .then(response => {
+            const results = response.data;
+            const resultsTable = document.getElementById("resultsTable").querySelector("tbody");
+            const noResults = document.getElementById("noResults");
+
+            resultsTable.innerHTML = ""; // Clear previous results
+            if (results.length > 0 && !results.error) {
+                results.forEach(criminal => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td><img src="${criminal.image_path || 'placeholder.jpg'}" alt="Criminal Image"></td>
+                        <td>${criminal.id}</td>
+                        <td>${criminal.name}</td>
+                        <td>${criminal.nid_no}</td>
+                        <td>${criminal.phone_no}</td>
+                        <td>${criminal.home_district}</td>
+                        <td>${criminal.crime_format}</td>
+                        <td>${criminal.crime_count}</td>
+                        <td>${criminal.wanted_status}</td>
+                        <td>${criminal.case_id}</td>
+                    `;
+                    resultsTable.appendChild(row);
+                });
+                noResults.style.display = "none";
+            } else if (results.error) {
+                alert("Error: " + results.error);
+            } else {
+                noResults.style.display = "block";
+            }
+        })
+        .catch(error => {
+            console.error("Error performing search:", error);
+            alert("An error occurred while performing the search.");
+        });
+}
+
+</script>
+</body>
+</html>

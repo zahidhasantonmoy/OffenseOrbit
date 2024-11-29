@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_metrics'])) {
 
 // Fetch All Crime Reports
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_reports'])) {
-    $result = $conn->query("SELECT * FROM crime_reports ORDER BY report_date DESC");
+    $result = $conn->query("SELECT * FROM crime_reports ORDER BY report_date ASC");
     $reports = $result->fetch_all(MYSQLI_ASSOC);
     echo json_encode($reports);
     exit;
@@ -99,6 +99,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_case'])) {
     }
     exit;
 }
+
+
+// Fetch all notifications
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_notifications'])) {
+    $result = $conn->query("SELECT * FROM notifications ORDER BY created_at DESC");
+    $notifications = $result->fetch_all(MYSQLI_ASSOC);
+    echo json_encode($notifications);
+    exit;
+}
+
+// Clear all notifications
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_notifications'])) {
+    $conn->query("DELETE FROM notifications");
+    echo json_encode(['success' => true, 'message' => 'All notifications cleared successfully.']);
+    exit;
+}
+
+// Add a new notification
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_notification'])) {
+    $message = trim($_POST['message']);
+    if (!empty($message)) {
+        $stmt = $conn->prepare("INSERT INTO notifications (message) VALUES (?)");
+        $stmt->bind_param("s", $message);
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Notification added successfully.']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to add notification.']);
+        }
+        $stmt->close();
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Notification message cannot be empty.']);
+    }
+    exit;
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -110,42 +145,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_case'])) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
     <style>
-        body {
-            display: flex;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: url('https://www.transparenttextures.com/patterns/dark-fabric.png'), 
-                linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(50,50,50,0.9));
-            background-size: cover;
-            color: white;
-        }
+        /* Sidebar styles */
+.sidebar a {
+    color: white;
+    text-decoration: none;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    border-radius: 5px;
+    transition: background-color 0.3s, transform 0.3s;
+}
 
-        .sidebar {
-            width: 250px;
-            background-color: #2c3e50;
-            color: white;
-            height: 100vh;
-            position: fixed;
-            padding: 20px;
-            overflow-y: auto;
-        }
+.sidebar a:hover {
+    background-color: #34495e;
+    transform: scale(1.05);
+}
 
-        .sidebar h3 {
-            text-align: center;
-            color: #ecf0f1;
-        }
+/* Animated background */
+body {
+    display: flex;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(-45deg, #1e3c72, #2a5298, #4776e6, #8e44ad);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+    color: white;
+}
 
-        .sidebar a {
-            color: white;
-            text-decoration: none;
-            padding: 10px;
-            display: block;
-            border-radius: 5px;
-        }
+/* Background animation keyframes */
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
 
-        .sidebar a:hover {
-            background-color: #34495e;
-        }
+/* Icon customization */
+.sidebar a i {
+    margin-right: 10px;
+    transition: transform 0.3s;
+}
+
+.sidebar a:hover i {
+    transform: rotate(20deg);
+}
 
         .content {
             margin-left: 250px;
@@ -160,16 +202,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_case'])) {
 </head>
 <body>
     <div class="sidebar">
-        <h3>Officer Dashboard</h3>
-              <a href="#" onclick="redirectToHomepage()"><i class="fas fa-home"></i> Homepage</a>
-        <a href="#" onclick="showFeature('overview')"><i class="fas fa-chart-line"></i> Status</a>
-        <a href="#" onclick="showFeature('addCrimeReport')"><i class="fas fa-plus-circle"></i> Add Crime Report</a>
-        <a href="#" onclick="showFeature('manageReports')"><i class="fas fa-clipboard-list"></i> Manage Reports</a>
-         <a href="http://offenseorbit.000.pe/others/add_wanted.php"><i class="fas fa-user-plus"></i> Add Wanted Person</a>
-           <a href="http://offenseorbit.000.pe/others/lost.php"><i class="fas fa-user-plus"></i> Lost Dashboard</a>
-         <a href="http://offenseorbit.000.pe/others/found.php"><i class="fas fa-user-plus"></i> Found dashboard </a>
-        <a href="#" onclick="showFeature('profile')"><i class="fas fa-user-circle"></i> Profile Management</a>
-    </div>
+    <h3>Officer Dashboard</h3>
+    <a href="#" onclick="redirectToHomepage()"><i class="fas fa-home"></i> Homepage</a>
+    <a href="#" onclick="showFeature('overview')"><i class="fas fa-chart-bar"></i> Dashboard Overview</a>
+    <a href="#" onclick="showFeature('addCrimeReport')"><i class="fas fa-file-alt"></i> Add Report</a>
+    <a href="#" onclick="showFeature('manageReports')"><i class="fas fa-tasks"></i> Manage Reports</a>
+    <a href="http://offenseorbit.000.pe/others/add_wanted.php"><i class="fas fa-user-secret"></i> Add Wanted</a>
+
+    <a href="http://offenseorbit.000.pe/others/ad_search.php"><i class="fas fa-search"></i> Advance Search</a>
+  <a href="http://offenseorbit.000.pe/others/add_criminal.php"><i class="fas fa-user-secret"></i> Add Criminal Data</a>
+      <a href="#" onclick="showFeature('notifications')"><i class="fas fa-bell"></i> Notifications</a>
+    <a href="http://offenseorbit.000.pe/others/lost.php"><i class="fas fa-question-circle"></i> Lost</a>
+    <a href="http://offenseorbit.000.pe/others/found.php"><i class="fas fa-check-circle"></i> Found</a>
+  
+
+    <a href="http://offenseorbit.000.pe/others/add_news.php"><i class="fas fa-newspaper"></i> Add News</a>
+    <a href="#" onclick="showFeature('profile')"><i class="fas fa-user-cog"></i> Profile</a>
+</div>
+
 
     <div class="content">
         <!-- Homepage -->
@@ -273,6 +323,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_case'])) {
             </table>
         </div>
 
+
+
+
+
+
+
+
+
+
+
+
+
+
         <!-- Edit Case Form -->
         <div id="editCaseForm" class="hidden">
             <h3>Edit Case</h3>
@@ -306,6 +369,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_case'])) {
             </form>
         </div>
 
+
+<!-- Notifications Management -->
+<div id="notifications" class="hidden">
+    <h3>Notifications</h3>
+    <div class="d-flex justify-content-between mb-3">
+        <button class="btn btn-success" onclick="showAddNotificationForm()">Add Notification</button>
+        <button class="btn btn-danger" onclick="clearAllNotifications()">Clear All Notifications</button>
+    </div>
+    <div id="addNotificationForm" class="hidden mb-3">
+        <form id="notificationForm">
+            <input type="text" class="form-control mb-2" name="message" placeholder="Enter notification message" required>
+            <button type="submit" class="btn btn-primary">Submit Notification</button>
+            <button type="button" class="btn btn-secondary" onclick="hideAddNotificationForm()">Cancel</button>
+        </form>
+    </div>
+    <ul id="notificationList" class="list-group"></ul>
+</div>
+
+
+
+
+
+
+
         <!-- Profile Management -->
         <div id="profile" class="hidden">
             <h3>Profile Management</h3>
@@ -325,6 +412,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_case'])) {
     </div>
 
     <script>
+
+// Show Add Notification Form
+function showAddNotificationForm() {
+    document.getElementById('addNotificationForm').classList.remove('hidden');
+}
+
+// Hide Add Notification Form
+function hideAddNotificationForm() {
+    document.getElementById('addNotificationForm').classList.add('hidden');
+}
+
+// Load Notifications
+function loadNotifications() {
+    axios.get('?fetch_notifications=true').then(response => {
+        const notificationList = document.getElementById('notificationList');
+        notificationList.innerHTML = '';
+        response.data.forEach(notification => {
+            const listItem = document.createElement('li');
+            listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+            listItem.innerHTML = `
+                <span>${notification.message}</span>
+                <small>${new Date(notification.created_at).toLocaleString()}</small>
+            `;
+            notificationList.appendChild(listItem);
+        });
+    }).catch(error => {
+        console.error('Error loading notifications:', error);
+    });
+}
+
+// Add a New Notification
+document.getElementById('notificationForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    formData.append('add_notification', true);
+    axios.post('', formData).then(response => {
+        alert(response.data.message);
+        if (response.data.success) {
+            hideAddNotificationForm();
+            loadNotifications();
+        }
+    }).catch(error => {
+        console.error('Error adding notification:', error);
+    });
+});
+
+// Clear All Notifications
+function clearAllNotifications() {
+    axios.post('', { clear_notifications: true }).then(response => {
+        alert(response.data.message);
+        if (response.data.success) {
+            loadNotifications();
+        }
+    }).catch(error => {
+        console.error('Error clearing notifications:', error);
+    });
+}
+
+// Load Notifications on Page Load
+document.addEventListener('DOMContentLoaded', loadNotifications);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    document.querySelectorAll('.sidebar a').forEach(link => {
+    link.addEventListener('click', () => {
+        document.querySelectorAll('.sidebar a').forEach(el => el.classList.remove('active'));
+        link.classList.add('active');
+    });
+});
+
         function showFeature(feature) {
             document.querySelectorAll('.content > div').forEach(div => div.classList.add('hidden'));
             document.getElementById(feature).classList.remove('hidden');
